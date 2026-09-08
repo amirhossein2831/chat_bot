@@ -1,0 +1,67 @@
+# Gateway conventions (Go)
+
+Rationale lives in spec sections 5 and 6. These are the enforceable rules.
+
+## Layering
+
+    model  <- domain <- dto/mapper <- controller
+      ^        ^
+    service (declares ports) <- repository, client (implement implicitly)
+                                        ^
+                                  infrastructure
+
+| Layer | May contain | Must never contain |
+|---|---|---|
+| Controller | decode DTO, call mapper, call service, map error, write | business branching, SQL, provider calls |
+| Mapper | DTO <-> model/domain, pure functions | I/O |
+| Service | orchestration, transactions, port calls | SQL, `net/http`, wire types |
+| Repository | SQL, scanning into model | business rules, defaulting |
+| Model | entity + logic about that entity | driver types, JSON tags |
+| Domain | non-persisted types, cross-entity logic | persistence concerns |
+
+- `model` has a table. `domain` does not.
+- `domain` may import `model`. `model` imports nothing from this codebase.
+- `repository` and `client` never import `service` — Go's implicit interface
+  satisfaction means they do not have to. fx binds them.
+- Only `cmd/` imports everything.
+
+## One model, two boundaries
+
+A `model.Message` travels unchanged from repository to service to mapper.
+Mapping exists in exactly two places and nowhere else:
+
+1. DTO <-> model, in `internal/mapper`.
+2. Wire format <-> `provider.ChatRequest`, inside each client package. Wire
+   types are unexported and never escape their package.
+
+## Hard rules
+
+- `context.Context` is the first parameter, never a struct field.
+- No globals, no `init()` side effects. Constructors take dependencies.
+- `viper` is imported only by `internal/config`; everything downstream receives
+  a typed `*config.Config`, validated at load.
+- Errors are sentinels in `internal/model`, wrapped with `%w`. HTTP status
+  mapping lives only in `internal/transport/http/error.go`.
+- Unmapped errors return a generic message. Never leak DSNs, table names or
+  upstream provider detail to a client.
+- Ownership is enforced in the SQL `WHERE` clause, not in the service. A missed
+  check in a service is an IDOR; a missed join returns zero rows.
+- Accept interfaces, return structs.
+- No interface until there are two reasons for it: a real second
+  implementation, or a test that genuinely needs a double.
+- Packages are named for the domain, never the layer. No `utils`.
+- Every stream terminates with exactly one `DeltaDone` or one `DeltaError`.
+  Billing depends on it.
+- `http.Server.WriteTimeout` is `0`. Use `http.ResponseController` deadlines.
+- The generation context is `context.WithoutCancel` of the request context,
+  with its own timeout.
+
+## Testing
+
+- Pure units for `model`, `domain`, `mapper` — no database, no HTTP.
+- Services against in-memory fakes. No mocking library.
+- Repositories against testcontainers Postgres.
+- Provider clients against **golden SSE fixtures**, including frames split
+  mid-line. This is the highest-value test in the codebase.
+- `fx.ValidateApp` in a test, so DI wiring errors fail in CI rather than at
+  production startup.
