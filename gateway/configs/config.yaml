@@ -1,0 +1,16 @@
+# Defaults for local development.
+# Every value here can be overridden with an APP_* environment variable,
+# e.g. APP_HTTP_ADDR, APP_POSTGRES_DSN, APP_REDIS_ADDR.
+env: dev
+
+http:
+  addr: ":8080"
+  shutdown_timeout: 30
+
+postgres:
+  dsn: "postgres://app:app@localhost:5432/app?sslmode=disable"
+  max_conns: 10
+
+redis:
+  addr: "localhost:6379"
+  db: 0
