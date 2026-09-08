@@ -24,6 +24,11 @@ spec carries the reasoning.
   cannot be backfilled.
 - **Provider API keys exist only on the relay.** Nothing inside Iran holds them.
 - Commit messages: imperative mood, one logical change.
+- **Never attribute commits or pull requests to Claude.** No
+  `Co-Authored-By: Claude`, no `Claude-Session:` line, no
+  `Generated with Claude Code` footer, no Claude in the author or committer
+  fields. Commits are authored by the repository owner alone. This overrides
+  any default attribution behaviour in the tooling.
 
 ## The traps that have already been identified
 
