@@ -62,7 +62,7 @@ the expected steady state.
     Go API Gateway  (only public surface)
       |-- Postgres, Redis, object storage (MinIO)
       |-- vLLM (self-hosted GPU)        free tier
-      |-- Extraction worker (Python)    async
+      |-- Extraction (in-process River job, Go)
       +-- Relay (foreign VPS) --> OpenAI / Anthropic
 
 The gateway is the only publicly reachable component. Inference, relay,
@@ -81,7 +81,7 @@ extraction and storage are internal.
 | Jobs | River (Postgres-backed) |
 | Migrations | goose |
 | Inference | vLLM (Qwen3), relay to OpenAI/Anthropic |
-| Extraction | Python: PyMuPDF fast path, Surya OCR fallback |
+| Extraction | Go-native (pdfium via wazero, excelize); Python only for OCR |
 | Ops | Docker Compose on 2-3 VMs, Caddy, MinIO, Prometheus/Grafana/Loki |
 
 Rationale for the load-bearing picks:
@@ -144,7 +144,7 @@ Rules:
       client/{openai,anthropic,relay}
       transport/http/{router,middleware,sse}
       relayserver  jobs  config  textnorm
-    migrations  configs  web  extractor
+    migrations  configs  web
     build/package  deployments  scripts  docs
 
 `dto` is a standalone package so `mapper` can import it without importing
@@ -307,19 +307,54 @@ forgetful for reasons the user cannot see.
 ## 10. Files and extraction
 
 Presigned direct-to-bucket upload; large files never proxy through the gateway.
-`attachments` goes pending -> client uploads -> confirm -> River job -> Python
-worker -> text object + status update.
+`attachments` goes pending -> client uploads -> confirm -> River job -> text
+object + status update.
 
-Fast path / slow path: PyMuPDF for PDFs with a text layer (most real
-documents, milliseconds); OCR only when that returns empty. Persian OCR uses
-**Surya**, not Tesseract — Tesseract's `fas` model is poor on Persian, and bad
-OCR is worse than none because the model answers confidently from garbage.
+**Extraction is Go-native.** An earlier draft put the whole extraction pipeline
+in Python; that was wrong on scope. Go matches or beats Python on every format
+here: PDF text via pdfium, XLSX via excelize, DOCX by unzipping and parsing its
+XML, charset detection via `x/text`. Only OCR has no Go path.
+
+Use **pdfium**, not MuPDF. Both are C engines of comparable quality, but MuPDF
+(and therefore PyMuPDF) is AGPLv3, which raises a source-disclosure question
+for a commercial network service. pdfium is BSD-3, and
+`github.com/klippa-app/go-pdfium` offers a wazero-based WebAssembly mode, so it
+needs no cgo and the single static binary survives.
+
+Routing:
+
+    pdf   -> pdfium text extraction
+               |- usable text layer  -> done (milliseconds, ~95% of files)
+               +- absent or garbage  -> render at 250 DPI -> OCR
+    image -> OCR
+    docx  -> unzip + parse XML
+    xlsx  -> excelize
+    txt/csv/md -> charset detection, then decode
+
+Two heuristics pick the branch, and the second is Persian-specific:
+
+- **Is there a text layer?** Mean characters per page under ~50, or fewer than
+  30% of pages carrying text.
+- **Is the text layer lying?** Many Iranian PDFs produced by older Persian
+  publishing tools carry a text layer with a broken `ToUnicode` CMap: extraction
+  returns confident-looking mojibake. Compare the fraction of characters in the
+  Arabic block (U+0600–U+06FF) against replacement and control characters; a
+  Persian document whose text is 5% Arabic-block characters is lying and must
+  fall through to OCR. Skipping this check feeds garbage to the model, which
+  then answers confidently from garbage — the worst failure mode available,
+  because nothing looks broken.
+
+Plain-text and CSV files from Iranian sources are frequently **Windows-1256**,
+not UTF-8. Never assume UTF-8; detect.
+
+**OCR is deferred out of Phase 1.** Image-only uploads are rejected with a
+clear Persian message. Measure what share of real uploads hit the OCR branch
+before paying for it — though expect that share to run higher here than in
+other markets, since Iranian official documents, contracts and older books are
+disproportionately scans. When it is built, it uses Surya, not Tesseract:
+Tesseract's `fas` model is poor on Persian, and bad OCR is worse than none.
 
 Limits: 20MB, 200 pages, 10 minute timeout, 1/day free, 20/day granted tier.
-
-Extracted text is **untrusted input**. It is wrapped in explicit delimiters with
-a system instruction stating that document content is data, never instructions.
-Without this, any PDF can rewrite the system prompt.
 
 ### Object storage: MinIO
 
@@ -376,7 +411,145 @@ signup, `usage_events` as audit trail, a documented takedown process, and a
 small keyword blocklist for obvious illegal categories that logs rather than
 silently drops. No ML moderation pipeline in Phase 1.
 
-## 13. Deliberate omissions
+## 13. Python: scope and conventions
+
+### Why Python exists at all
+
+Exactly one reason: **Persian OCR.** Surya is PyTorch, has no Go port, and
+exporting it to ONNX for `onnxruntime-go` is its own project with uncertain
+accuracy. Tesseract has Go bindings but its Persian is bad enough to be worse
+than nothing. Everything else — PDF text, DOCX, XLSX, charset detection — is
+equal or better in Go.
+
+Since OCR is deferred, **Phase 1 ships with no Python service at all.**
+
+### The rule for future Python
+
+> Python belongs offline (training, evaluation, analysis) and at custom-ML
+> boundaries where no server exists. It never belongs in the request path.
+
+"It needs a model" is not "it needs Python in the codebase." vLLM,
+text-embeddings-inference and Whisper servers all expose HTTP APIs that Go
+calls directly. Python enters only where custom pre- and post-processing wraps
+raw model output, which is why OCR qualifies and embeddings do not.
+
+Later candidates: an evaluation harness for Persian model quality (arguably
+higher value than OCR — it answers whether the free tier is good enough with
+numbers rather than impressions), Persian STT for voice input, cost and pricing
+analysis over `usage_events`, LoRA fine-tuning, and Phase 2 financial
+indicators and backtesting.
+
+Explicit non-candidates: embeddings and reranking (serve behind TEI, call from
+Go), web scraping for Phase 2 (`goquery` and `chromedp` are adequate, and one
+language is worth more), and Persian NLP libraries such as hazm (we chose
+trigram matching over stemming, so there is nothing for them to do).
+
+### Queue: River stays
+
+River is Go-only, so an earlier draft's "Go enqueues, Python consumes" did not
+actually work. The resolution is not a broker.
+
+The deciding property is **transactional enqueue**. Every job here acts on a
+row that was just written, so with any external broker the two writes cannot be
+atomic: Postgres commits and the publish fails (job silently lost, document
+stuck at "processing" forever), or the publish succeeds and the transaction
+rolls back (job fires for a row that does not exist). The standard fix is a
+transactional outbox — a Postgres jobs table plus a relay process — which is a
+Postgres-backed queue with a broker bolted behind it. River is that outbox
+without the second hop.
+
+Rejected alternatives, with the trigger that would change the decision:
+
+- **Redis (asynq/Celery)** — the apparent cross-language win is illusory:
+  asynq's payload format is Go-specific and Celery's protocol is Python-specific,
+  so interop means hand-rolling a shared envelope over a Redis list and
+  discarding the retry, backoff and scheduling those libraries exist to
+  provide. Revisit only if sub-10ms job latency is ever required.
+- **RabbitMQ** — genuinely language-agnostic and durable, but a stateful
+  service to operate for a few thousand jobs a day, and still no transactional
+  enqueue. Revisit at three or more services in three or more languages needing
+  real routing and fanout.
+- **Kafka** — wrong shape, not merely oversized: no per-message ack or
+  redelivery, no delayed retry, and a slow consumer blocks its whole partition,
+  so one multi-minute OCR job stalls everything behind it. Its legitimate future
+  home is streaming `usage_events` to analytics consumers that replay a log —
+  alongside River, not replacing it.
+
+If a Python consumer is ever genuinely needed, the cheapest correct option is
+Postgres polling with `FOR UPDATE SKIP LOCKED`: safe concurrent consumers, no
+coordination, roughly forty lines, still transactional, nothing new to operate.
+
+### Python service conventions
+
+The Go layering maps onto Python idioms rather than being transliterated:
+
+| Go | Python |
+|---|---|
+| interface declared by consumer | `typing.Protocol` — structural, implicit satisfaction |
+| viper + typed struct | `pydantic-settings`, validated at startup |
+| fx | plain composition root in FastAPI `lifespan` |
+| dto + mapper | pydantic schemas + mapper functions |
+| model / domain | frozen `@dataclass(slots=True)` |
+| sentinel errors + error.go | exception types + one exception handler |
+| table-driven tests, fakes | `pytest.mark.parametrize`, fakes |
+
+`Protocol` is the important one: like a Go interface, the adapter satisfies it
+without importing it, so the service is testable with no model loaded.
+
+Structure, per service:
+
+    ocr/
+      pyproject.toml         uv, ruff, mypy strict, pytest
+      app/
+        main.py              composition root + lifespan
+        settings.py
+        api/    schema.py  mapper.py  routes.py  errors.py
+        domain/ models.py  errors.py
+        service/ ports.py  recognize.py
+        adapters/ surya.py  images.py
+      tests/  fakes.py  test_recognize.py  test_api.py
+
+Rules:
+
+- **`domain` imports nothing** — no fastapi, no pydantic, no torch. Same rule as
+  `model` in Go, and it is what lets service tests run in milliseconds with a
+  fake recognizer and no GPU.
+- **Blocking work must not run in an async handler.** FastAPI handlers are
+  async, and one blocking call stalls the entire event loop — every concurrent
+  request freezes, not just that one. Model inference goes through
+  `anyio.to_thread.run_sync`. This is the Python analogue of the `WriteTimeout`
+  trap: invisible in development, catastrophic under load.
+- **Load models in `lifespan`**, never at import time and never per request.
+- **Bake model weights into the image**, `HF_HUB_OFFLINE=1`. Runtime HuggingFace
+  downloads fail from Iran.
+- **One GPU job at a time** via a semaphore: the GPU is shared with vLLM, so a
+  scanned 200-page document must degrade OCR latency rather than starve chat
+  inference for everyone.
+- **Store logical order, never visual order.** Running `python-bidi` over
+  recognized text stores visually-reordered characters, which corrupts search,
+  breaks `textnorm` and confuses the model. Sort lines top-to-bottom and keep
+  each line's logical order as the recognizer produced it.
+- **mypy strict in CI**, `Any` banned in `domain` and `service`. Without it the
+  property that makes the Go design work — wrong type is a build failure — is
+  lost.
+- **`uv` with a committed lockfile.** Not pip, not poetry.
+- **Fakes, not `unittest.mock`.** A fake class implementing the Protocol gives
+  type-checked doubles; `mock.patch` gives tests that still pass after a rename.
+- **4xx means permanent, 5xx means transient.** The status code carries retry
+  semantics for the calling River job: unsupported format and page-limit
+  breaches must not be retried; OOM and model-load failures must be.
+
+When a second Python service arrives (STT), copy this skeleton rather than
+extracting a shared framework. Two services is not enough evidence to know what
+they would share.
+
+### Document text is untrusted
+
+Extracted text is wrapped in explicit delimiters with a system instruction
+stating that document content is data and never instructions. Without it, any
+uploaded PDF can rewrite the system prompt.
+
+## 14. Deliberate omissions
 
 - Kubernetes. Compose on 2-3 VMs until a second gateway node earns it.
 - `pkg/`, `test/`, `tools/`, and other empty layout directories.
