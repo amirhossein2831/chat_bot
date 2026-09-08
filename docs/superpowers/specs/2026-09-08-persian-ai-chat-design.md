@@ -405,86 +405,70 @@ than assembled; Material UI is not.
 What makes a chat product feel good is typography, spacing and streaming
 behaviour. Component breadth helps with none of those.
 
-### Architecture
+### Structure: colocate by feature
 
-The same layering discipline as the Go gateway, expressed in React idioms:
-
-| Go | React |
-|---|---|
-| controller | route component — wiring only |
-| dto | `api/types.ts` |
-| mapper | `api/mapper.ts` |
-| service | feature hooks |
-| repository / client | `api/*.ts` — the only place `fetch` exists |
-| model / domain | `domain/` — pure, imports nothing |
-| error.go | `api/errors.ts` — one code → typed error map |
-
-Two rules carry most of the weight:
-
-- **Wire types never reach components.** The server's `created_at: string`
-  becomes a domain `Date` in exactly one file. An API change then touches one
-  mapper rather than thirty components.
-- **Components never call `fetch` or `useQuery`.** A component importing
-  TanStack Query directly is the equivalent of a controller writing SQL. Hooks
-  are the service layer and expose domain-shaped APIs.
-
-### Structure
-
-Feature-first, mirroring the Go domain packages rather than splitting by
-technical layer:
+Standard React practice, not a port of the backend layering. Everything about a
+feature lives in one folder — components, hooks, API calls, types — because
+those are the files that change together:
 
     web/src/
-      app/
-        providers.tsx   QueryClient, i18n, direction, theme
-        router.tsx
-        routes/         thin: read params, render feature
-      api/              the HTTP edge
-        http.ts         fetch wrapper, credentials, error normalisation
-        errors.ts       typed errors mirroring the Go sentinels
-        types.ts        DTOs
-        mapper.ts       DTO <-> domain
-        sse.ts          pure SSE frame parser
-        chat.ts  conversations.ts  memory.ts
-      domain/           imports nothing: not react, not api
-        message.ts      Message, Thread, branch logic
-        model.ts        ModelInfo, availability rules
+      main.tsx
+      routes/                 route components, thin
       features/
-        chat/  hooks/  components/
+        chat/
+          ChatPage.tsx
+          MessageList.tsx
+          MessageBubble.tsx
+          Composer.tsx
+          BranchSwitcher.tsx
+          useChatStream.ts
+          useConversation.ts
+          chatApi.ts
+          types.ts
+          Composer.test.tsx
         auth/  conversations/  memory/  prompts/  files/
-      components/ui/    shadcn primitives, pure
+      components/ui/          shadcn primitives
+      hooks/                  genuinely shared hooks only
       lib/
-        textnorm.ts     port of the Go normaliser
-        format.ts       Intl wrappers        (locale edge)
-        storage.ts      localStorage adapter (browser edge)
+        apiClient.ts          one typed fetch wrapper
+        sse.ts                SSE frame parser
+        textnorm.ts           port of the Go normaliser
+        format.ts             Intl wrappers
       i18n/
 
-### The edges
+Conventions that matter more than any diagram:
 
-Four boundaries, each behind an adapter so nothing else touches them: HTTP
-(`api/`), browser storage (`lib/storage.ts` — never `localStorage` in a
-component), locale and time (`lib/format.ts` over `Intl`), and the streaming
-transport (`api/sse.ts`).
+- **Custom hooks are the unit of abstraction.** `useChatStream`,
+  `useConversations`. Not services, not use-cases, not classes. If logic needs
+  to be shared or tested apart from JSX, it becomes a hook or a plain function.
+- **TanStack Query owns server state.** No manual caching, no mirroring server
+  data into a store. Query keys are namespaced per feature
+  (`['conversations', id, 'messages']`).
+- **Zustand holds only genuinely client-side state**: the live token buffer, the
+  composer draft, sidebar and theme preferences.
+- **One typed fetch wrapper** in `lib/apiClient.ts` handling credentials, JSON,
+  and turning the server's `{error, code}` into typed errors. Feature API
+  functions are thin wrappers over it and live with their feature.
+- **API shapes are converted where they arrive**, in the feature's `*Api.ts` —
+  `created_at` string becomes a `Date` there, not in a component. Not a layer,
+  just the normal habit of not scattering `new Date(x.created_at)` across the
+  tree.
+- **No barrel files.** `index.ts` re-export hubs hurt Vite dev performance and
+  tree-shaking. Import from the file.
+- **Colocate tests.** `Composer.test.tsx` beside `Composer.tsx`.
+- **Extract on the second use, not the first.** The React failure mode is
+  premature abstraction, not missing layers.
+- **Props down, events up.** Lift state only when two siblings genuinely need
+  it, and prefer composition (`children`, slots) over configuration props.
 
-`sse.ts` is a **pure function over a byte stream** — no React, no `fetch` — so
-it is tested against recorded fixtures including frames split mid-line, exactly
-as the Go client is. The hardest client-side bug class becomes a plain unit
-test.
+Two things stay deliberately separate from React, because they are pure logic
+and testing them through a component is painful:
 
-### Layering rules
-
-- `domain/` imports nothing from the application.
-- `components/ui/` imports nothing from `features/` or `api/`.
-- No feature imports another feature; shared code moves down to `components/`
-  or `lib/`.
-- Only `api/` calls `fetch`. Only hooks call TanStack Query.
-- Route components contain no business logic.
-- Business logic — branch selection, truncation warnings, model availability —
-  lives in `domain/` as pure functions, unit-tested without React.
-
-**Caveat:** clean architecture in React fails when it becomes Java. No
-`UseCase` classes, no `Repository` interfaces, no DI container. The value is
-entirely in the boundaries above; everything stays plain functions, hooks and
-components. A layer that needs a class to exist is ceremony.
+- **`lib/sse.ts`** — a pure function over a byte stream, no React and no
+  `fetch`, tested against recorded fixtures including frames split mid-line.
+  This is the hardest client-side bug class, reduced to a unit test.
+- **`lib/textnorm.ts`** — a direct port of the Go normaliser. If the two
+  diverge, client-side filtering contradicts server-side search.
 
 ### State
 
