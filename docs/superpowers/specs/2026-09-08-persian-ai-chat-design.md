@@ -19,7 +19,7 @@ design keeps that seam open but builds none of it.
 - Streaming chat with a model picker (local + frontier)
 - Custom instructions and per-user memory
 - Persian prompt library
-- File upload with text extraction
+- File upload with text extraction, including Persian OCR
 - Quota and usage metering
 - Persian/English UI with direction switching
 
@@ -63,6 +63,7 @@ the expected steady state.
       |-- Postgres, Redis, object storage (MinIO)
       |-- vLLM (self-hosted GPU)        free tier
       |-- Extraction (in-process River job, Go)
+      |     +-- OCR service (Python + Surya, GPU) for scans and images
       +-- Relay (foreign VPS) --> OpenAI / Anthropic
 
 The gateway is the only publicly reachable component. Inference, relay,
@@ -81,7 +82,8 @@ extraction and storage are internal.
 | Jobs | River (Postgres-backed) |
 | Migrations | goose |
 | Inference | vLLM (Qwen3), relay to OpenAI/Anthropic |
-| Extraction | Go-native (pdfium via wazero, excelize); Python only for OCR |
+| Extraction | Go-native (pdfium via wazero, excelize) |
+| OCR | Python service: FastAPI + Surya, GPU |
 | Ops | Docker Compose on 2-3 VMs, Caddy, MinIO, Prometheus/Grafana/Loki |
 
 Rationale for the load-bearing picks:
@@ -347,12 +349,16 @@ Two heuristics pick the branch, and the second is Persian-specific:
 Plain-text and CSV files from Iranian sources are frequently **Windows-1256**,
 not UTF-8. Never assume UTF-8; detect.
 
-**OCR is deferred out of Phase 1.** Image-only uploads are rejected with a
-clear Persian message. Measure what share of real uploads hit the OCR branch
-before paying for it — though expect that share to run higher here than in
-other markets, since Iranian official documents, contracts and older books are
-disproportionately scans. When it is built, it uses Surya, not Tesseract:
-Tesseract's `fas` model is poor on Persian, and bad OCR is worse than none.
+**OCR ships in Phase 1**, as a separate Python service. It uses **Surya**, not
+Tesseract: Tesseract's `fas` model is poor on Persian, and bad OCR is worse
+than none because the model then answers confidently from garbage. Iranian
+official documents, contracts and older books are disproportionately scans, so
+this branch carries more traffic here than it would in other markets.
+
+The Go job renders pages to PNG at 250 DPI with pdfium and POSTs them to the
+OCR service, which returns text. Go keeps the queue, the retries, the database
+and every credential; the OCR service is a stateless function. Instrument the
+share of uploads taking this branch — it drives GPU capacity planning.
 
 Limits: 20MB, 200 pages, 10 minute timeout, 1/day free, 20/day granted tier.
 
@@ -421,7 +427,9 @@ accuracy. Tesseract has Go bindings but its Persian is bad enough to be worse
 than nothing. Everything else — PDF text, DOCX, XLSX, charset detection — is
 equal or better in Go.
 
-Since OCR is deferred, **Phase 1 ships with no Python service at all.**
+The OCR service therefore **ships in Phase 1**. It is the only Python in the
+system, and the only Python in the request path — everything else Python could
+plausibly do here is either better in Go or belongs offline.
 
 ### The rule for future Python
 
@@ -433,7 +441,7 @@ text-embeddings-inference and Whisper servers all expose HTTP APIs that Go
 calls directly. Python enters only where custom pre- and post-processing wraps
 raw model output, which is why OCR qualifies and embeddings do not.
 
-Later candidates: an evaluation harness for Persian model quality (arguably
+Later candidates beyond the OCR service: an evaluation harness for Persian model quality (arguably
 higher value than OCR — it answers whether the free tier is good enough with
 numbers rather than impressions), Persian STT for voice input, cost and pricing
 analysis over `usage_events`, LoRA fine-tuning, and Phase 2 financial
