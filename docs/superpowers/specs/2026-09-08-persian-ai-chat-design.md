@@ -74,7 +74,7 @@ extraction and storage are internal.
 | Layer | Choice |
 |---|---|
 | Web | React 19 + Vite + TypeScript |
-| UI | Tailwind v4 + shadcn/ui, logical properties only |
+| UI | Tailwind v4 + shadcn/ui (Radix), logical properties only |
 | i18n | i18next; Vazirmatn self-hosted; Intl for Jalali dates and Persian digits |
 | API | Go 1.24, chi, fx (DI), viper (config) |
 | Data | Postgres 17 (pgx + RowToStructByName), Redis 7 |
@@ -383,28 +383,108 @@ obligation, but do not fork it without checking that.
 React 19 + Vite + TypeScript, single-page, served from the same origin as the
 API so there is no CORS and no cookie-domain problem.
 
+### UI library: shadcn/ui, not Material UI
+
+Material UI is the obvious default and the wrong one here. Material Design is a
+strong, recognisable visual language — a chat product built in it reads as an
+Android settings screen, and escaping that means overriding Material's tokens
+everywhere, which is fighting the library added to save effort. It also costs
+300–400 kB before application code, which matters on Iranian mobile networks and
+mid-range Android hardware, often through a VPN. Its RTL support is an emotion
+cache plus `stylis-plugin-rtl` — a transform layer rather than native support.
+And a chat app uses perhaps five percent of it: the parts that actually matter
+(message list, composer, sidebar, branch switcher) are custom under any library.
+
+**shadcn/ui + Tailwind v4** instead. It is not a dependency — component source
+is copied into the repository. Radix primitives underneath give accessibility
+and native RTL awareness, Tailwind v4 treats logical properties as first-class,
+and roughly thirteen primitives cover the entire application. Mantine is the
+better batteries-included alternative if components should be handed over rather
+than assembled; Material UI is not.
+
+What makes a chat product feel good is typography, spacing and streaming
+behaviour. Component breadth helps with none of those.
+
+### Architecture
+
+The same layering discipline as the Go gateway, expressed in React idioms:
+
+| Go | React |
+|---|---|
+| controller | route component — wiring only |
+| dto | `api/types.ts` |
+| mapper | `api/mapper.ts` |
+| service | feature hooks |
+| repository / client | `api/*.ts` — the only place `fetch` exists |
+| model / domain | `domain/` — pure, imports nothing |
+| error.go | `api/errors.ts` — one code → typed error map |
+
+Two rules carry most of the weight:
+
+- **Wire types never reach components.** The server's `created_at: string`
+  becomes a domain `Date` in exactly one file. An API change then touches one
+  mapper rather than thirty components.
+- **Components never call `fetch` or `useQuery`.** A component importing
+  TanStack Query directly is the equivalent of a controller writing SQL. Hooks
+  are the service layer and expose domain-shaped APIs.
+
 ### Structure
 
 Feature-first, mirroring the Go domain packages rather than splitting by
 technical layer:
 
     web/src/
-      app/          router, providers, layout shell
-      api/          typed client, SSE parser, error mapping
+      app/
+        providers.tsx   QueryClient, i18n, direction, theme
+        router.tsx
+        routes/         thin: read params, render feature
+      api/              the HTTP edge
+        http.ts         fetch wrapper, credentials, error normalisation
+        errors.ts       typed errors mirroring the Go sentinels
+        types.ts        DTOs
+        mapper.ts       DTO <-> domain
+        sse.ts          pure SSE frame parser
+        chat.ts  conversations.ts  memory.ts
+      domain/           imports nothing: not react, not api
+        message.ts      Message, Thread, branch logic
+        model.ts        ModelInfo, availability rules
       features/
-        auth/       login, register
-        chat/       ChatView, MessageList, Composer, useChatStream
-        conversations/  sidebar, search
-        memory/     facts list, custom instructions
-        prompts/    Persian library
-        files/      upload, attachment chips
-      components/   shadcn/ui primitives
-      i18n/         fa.json, en.json, direction handling
-      lib/          textnorm.ts, format.ts
-      styles/
+        chat/  hooks/  components/
+        auth/  conversations/  memory/  prompts/  files/
+      components/ui/    shadcn primitives, pure
+      lib/
+        textnorm.ts     port of the Go normaliser
+        format.ts       Intl wrappers        (locale edge)
+        storage.ts      localStorage adapter (browser edge)
+      i18n/
 
-A feature owns its components, hooks and API calls. Nothing in `features/`
-imports from another feature; shared pieces move to `components/` or `lib/`.
+### The edges
+
+Four boundaries, each behind an adapter so nothing else touches them: HTTP
+(`api/`), browser storage (`lib/storage.ts` — never `localStorage` in a
+component), locale and time (`lib/format.ts` over `Intl`), and the streaming
+transport (`api/sse.ts`).
+
+`sse.ts` is a **pure function over a byte stream** — no React, no `fetch` — so
+it is tested against recorded fixtures including frames split mid-line, exactly
+as the Go client is. The hardest client-side bug class becomes a plain unit
+test.
+
+### Layering rules
+
+- `domain/` imports nothing from the application.
+- `components/ui/` imports nothing from `features/` or `api/`.
+- No feature imports another feature; shared code moves down to `components/`
+  or `lib/`.
+- Only `api/` calls `fetch`. Only hooks call TanStack Query.
+- Route components contain no business logic.
+- Business logic — branch selection, truncation warnings, model availability —
+  lives in `domain/` as pure functions, unit-tested without React.
+
+**Caveat:** clean architecture in React fails when it becomes Java. No
+`UseCase` classes, no `Repository` interfaces, no DI container. The value is
+entirely in the boundaries above; everything stays plain functions, hooks and
+components. A layer that needs a class to exist is ceremony.
 
 ### State
 
