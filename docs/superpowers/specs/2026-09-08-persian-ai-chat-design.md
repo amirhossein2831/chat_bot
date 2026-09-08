@@ -75,7 +75,7 @@ extraction and storage are internal.
 |---|---|
 | Web | React 19 + Vite + TypeScript |
 | UI | Tailwind v4 + shadcn/ui, logical properties only |
-| i18n | i18next; Vazirmatn self-hosted; dayjs-jalali |
+| i18n | i18next; Vazirmatn self-hosted; Intl for Jalali dates and Persian digits |
 | API | Go 1.24, chi, fx (DI), viper (config) |
 | Data | Postgres 17 (pgx + RowToStructByName), Redis 7 |
 |  Objects | MinIO (self-hosted, S3-compatible) |
@@ -378,23 +378,131 @@ upload and download so the gateway never proxies file bytes. MinIO is AGPLv3:
 running it unmodified as infrastructure carries no source-disclosure
 obligation, but do not fork it without checking that.
 
-## 11. Frontend
+## 11. Web application
 
-- `useChatStream` over `fetch` + `ReadableStream` + `AbortController`.
-  **Not `EventSource`** — it is GET-only and cannot send headers.
-- TanStack Query for conversation and message lists; Zustand for the live token
-  buffer only.
-- Branch switcher (`< 2/3 >`) under a message when siblings exist.
-- RTL: `dir` on `<html>`; **logical properties only** (`ms-*`/`me-*`,
-  `start`/`end`), enforced by an ESLint rule from day one. Retrofitting RTL
-  into physical-property CSS is miserable.
-- Self-host Vazirmatn; Google Fonts is unreliable from Iran.
-- `dir="ltr"` on code blocks inside RTL text; `unicode-bidi: isolate` on inline
-  Latin runs, or Persian sentences containing English words render scrambled.
-- Persian digits and Jalali dates in the UI layer only; never in stored data.
+React 19 + Vite + TypeScript, single-page, served from the same origin as the
+API so there is no CORS and no cookie-domain problem.
+
+### Structure
+
+Feature-first, mirroring the Go domain packages rather than splitting by
+technical layer:
+
+    web/src/
+      app/          router, providers, layout shell
+      api/          typed client, SSE parser, error mapping
+      features/
+        auth/       login, register
+        chat/       ChatView, MessageList, Composer, useChatStream
+        conversations/  sidebar, search
+        memory/     facts list, custom instructions
+        prompts/    Persian library
+        files/      upload, attachment chips
+      components/   shadcn/ui primitives
+      i18n/         fa.json, en.json, direction handling
+      lib/          textnorm.ts, format.ts
+      styles/
+
+A feature owns its components, hooks and API calls. Nothing in `features/`
+imports from another feature; shared pieces move to `components/` or `lib/`.
+
+### State
+
+- **TanStack Query** for anything the server owns: conversations, messages,
+  models, memory, prompts, current user.
+- **Zustand** for the live token buffer, the composer draft, and UI preferences
+  (locale, theme, sidebar collapsed).
+- No Redux. The only genuinely hard state here is one in-flight stream.
+
+### The streaming hook
+
+`useChatStream()` returns `{ send, stop, streaming, buffer, error }` and is the
+heart of the client.
+
+- `fetch` + `ReadableStream` + `TextDecoder`, **never `EventSource`** — it is
+  GET-only and cannot send headers or a body.
+- Frames split on the blank line, then `event:` and `data:` parsed per frame.
+- `AbortController` powers the stop button and also fires `POST
+  /chat/{id}/stop` so the server cancels generation instead of merely
+  detaching.
+- On `done`, invalidate the messages query so the persisted message replaces
+  the local buffer; the buffer is never the source of truth.
+- On mount, if the newest message has `status = streaming`, open
+  `GET /chat/{id}/stream` to reattach — this is what makes a refresh
+  mid-answer work.
+- Reconnect with backoff on transport failure, showing a connection notice
+  rather than silently stalling.
+
+**Batch renders, do not render per token.** Setting state on every delta
+re-renders the message list dozens of times per second and makes long answers
+visibly janky on the mid-range Android devices most users have. Accumulate
+into a ref and flush on `requestAnimationFrame`.
+
+### Markdown while streaming
+
+Partial markdown is malformed markdown: a half-arrived code fence renders as
+broken output that flickers when it completes. Before rendering, count fence
+markers and append a virtual closing fence when the count is odd.
+
+Syntax highlighting is deferred to completion — plain `<pre>` while streaming,
+Shiki once `done` arrives. Highlighting every partial frame is expensive and
+the result is thrown away microseconds later.
+
+### The message tree in the UI
+
+Assistant messages whose parent has more than one child show a branch switcher
+(`< 2/3 >`); selecting a branch moves the conversation head. Editing a user
+message creates a new sibling rather than mutating history. This is the client
+half of the tree from section 7.
+
+### RTL and Persian rendering
+
+- `dir` and `lang` set on `<html>` from the active locale.
+- **Logical properties only** — `ms-*`, `me-*`, `ps-*`, `pe-*`, `start`, `end`.
+  An ESLint rule bans `ml-*`, `mr-*`, `pl-*`, `pr-*`, `left-*`, `right-*`,
+  `text-left`, `text-right` from day one. Retrofitting RTL into physical-property
+  CSS is miserable; preventing it costs one rule.
+- `dir="ltr"` on `<pre>` and inline code, or code blocks inside Persian text
+  render right-aligned and unreadable.
+- Inline Latin runs wrapped in `<bdi>`. Without isolation, a Persian sentence
+  containing an English product name renders with the punctuation in the wrong
+  place — subtly wrong in a way that reads as amateurish to native speakers.
+- **Jalali dates via `Intl.DateTimeFormat('fa-IR-u-ca-persian')`** and Persian
+  digits via `Intl.NumberFormat('fa-IR')`. The platform handles the Persian
+  calendar natively, so no date library is needed. Formatting is display-only —
+  never store or copy Persian digits.
+- **Vazirmatn self-hosted and subset**, `font-display: swap`. Google Fonts is
+  unreliable from Iran, and a webfont that never arrives leaves Persian text in
+  a fallback that renders poorly.
+
+### Composer
+
+Auto-growing textarea; Enter sends, Shift+Enter breaks; IME composition events
+respected so the send key does not fire mid-composition. Model picker reads
+`GET /models` and greys out unavailable models with a reason. Attachment chips
+show extraction progress. A notice appears when the server reports the thread
+was truncated.
+
+### Cross-cutting
+
+- Auth is cookie-based; the token never touches JavaScript. A 401 anywhere
+  redirects to login.
+- Streaming text lives in an `aria-live="polite"` region so screen readers
+  follow the answer.
+- Route-level code splitting; Shiki lazy-loaded. Message lists are virtualized
+  only if a real conversation gets slow — not preemptively.
+- `lib/textnorm.ts` is a direct port of the Go normaliser. If the two diverge,
+  client-side filtering contradicts server-side search results.
+
+### Testing
+
+Vitest + Testing Library, MSW for API mocking. The stream hook is tested
+against **recorded SSE fixtures**, mirroring the Go golden fixtures — including
+frames split mid-line, since that is where client parsers break too. One
+Playwright end-to-end covering login, send, stream, refresh-mid-stream.
 
 A pure SPA is not indexable. If organic search matters, add a small prerendered
-marketing/prompt-library site later — do not convert the app to SSR.
+marketing and prompt-library site later; do not convert the app to SSR.
 
 ## 12. Observability, testing, abuse
 
@@ -557,7 +665,107 @@ Extracted text is wrapped in explicit delimiters with a system instruction
 stating that document content is data and never instructions. Without it, any
 uploaded PDF can rewrite the system prompt.
 
-## 14. Deliberate omissions
+## 14. Relay server
+
+A second, deliberately small Go binary (`cmd/relay`) hosted outside Iran. It is
+the only component that holds provider credentials.
+
+### Responsibilities, complete
+
+1. Authenticate the gateway.
+2. Enforce a host allowlist.
+3. Inject the provider key.
+4. Stream the response back unbuffered.
+5. Emit metrics and metadata-only logs.
+
+Nothing else. It does not normalise request bodies, does not retry, does not
+know what a conversation is. Normalisation churn stays in Iran where deploys
+are cheap and frequent; the relay is the component that is hardest to update
+and riskiest to touch, so it ships rarely.
+
+### Routing and key injection
+
+    POST /relay/{provider}/{path...}
+      -> allowlist lookup: openai -> https://api.openai.com
+                           anthropic -> https://api.anthropic.com
+      -> strip every inbound Authorization / x-api-key header
+      -> inject the provider key for that provider
+      -> proxy
+
+The upstream is chosen from a static map keyed by the path segment, **never
+from a header or query parameter**. Taking the upstream from the request would
+turn the relay into an open proxy the moment the gateway credential leaks.
+
+Hold **several keys per provider**, selected round-robin with per-key error
+tracking. A key that starts returning 401 or persistent 429 is taken out of
+rotation without taking the tier down. Keys reload on SIGHUP so rotation is a
+routine operation, not an emergency redeploy.
+
+### Authentication
+
+**mTLS**, with the relay verifying a client certificate against its own CA
+(`tls.Config{ClientAuth: RequireAndVerifyClientCert}`). A rotatable HMAC bearer
+is the fallback where certificate distribution is impractical; accept two valid
+credentials at once so rotation has no downtime.
+
+The relay terminates TLS itself via autocert rather than sitting behind another
+proxy — one less hop, and the client certificate is verified by the process
+that acts on it. Add an IP allowlist for the gateway's egress addresses as
+defence in depth where those addresses are stable.
+
+### Streaming
+
+`httputil.ReverseProxy` with **`FlushInterval: -1`**, which flushes every write
+immediately. The default buffers, which would hold tokens until the response
+completes and make every answer arrive in one burst — the product appears
+frozen and the cause is invisible.
+
+Server `WriteTimeout` is 0 for the same reason it is on the gateway. The
+upstream transport sets `ResponseHeaderTimeout` but no overall deadline, since
+a legitimate generation can run for minutes.
+
+### No retries here
+
+Upstream 429s and 5xxs pass through unchanged so the gateway's circuit breaker
+observes reality. The gateway already fails over across relays; retrying in
+both places multiplies load against a provider that is already rate-limiting
+you, which is how a temporary throttle becomes a terminated account.
+
+### Logging and metrics
+
+Metadata only: request ID, provider, model, status, byte count, duration, and
+which key was used. **Never request or response bodies.** If this VPS is seized
+or subpoenaed, user conversations were never on it.
+
+The model name arrives as an `X-Relay-Model` header from the gateway, so the
+relay never parses a request body — cheaper, and it keeps the "no bodies" rule
+structurally true rather than merely intended.
+
+Metrics: requests by provider and status, upstream time-to-first-byte, bytes
+streamed, per-key error rate, and keys currently in rotation.
+
+### Health
+
+`/healthz` is liveness only. `/readyz` reports whether upstreams were reachable
+on the last cached probe (30s), so the gateway's health checks do not turn into
+traffic against the providers.
+
+### Deployment
+
+Distroless image, non-root, read-only root filesystem, egress firewalled to the
+two provider hosts. **At least two relays** on different hosts, regions and
+provider accounts — a single relay is a single point of total frontier failure,
+and being blocked or flagged is the expected steady state rather than an
+incident.
+
+### Load shaping
+
+Per-key rate limiting keeps each key's volume within a plausible range. All of
+your users arriving at a provider through one key looks like one implausibly
+heavy account, and that pattern is what gets keys terminated. Spreading load
+across keys and relays is a availability requirement, not an optimisation.
+
+## 15. Deliberate omissions
 
 - Kubernetes. Compose on 2-3 VMs until a second gateway node earns it.
 - `pkg/`, `test/`, `tools/`, and other empty layout directories.
