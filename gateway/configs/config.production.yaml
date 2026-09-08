@@ -1,0 +1,14 @@
+# Production tuning only.
+#
+# postgres.dsn and redis.addr are deliberately absent: they carry credentials
+# and hostnames and must arrive as APP_POSTGRES_DSN and APP_REDIS_ADDR.
+# Startup fails validation if they are missing, which is the intended
+# behaviour — a production process must never fall back to a development
+# database.
+
+http:
+  addr: ":8080"
+  shutdown_timeout: 60
+
+postgres:
+  max_conns: 50

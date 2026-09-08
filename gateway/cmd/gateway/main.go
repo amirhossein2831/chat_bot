@@ -14,6 +14,11 @@ import (
 func options() fx.Option {
 	return fx.Options(
 		config.Module,
+
+		// fx constructs lazily: without an invocation nothing is built and a
+		// broken configuration would never surface. This forces config to load
+		// at startup so misconfiguration fails immediately and loudly.
+		fx.Invoke(func(*config.Config) {}),
 	)
 }
 

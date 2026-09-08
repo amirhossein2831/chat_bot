@@ -40,6 +40,18 @@ Mapping exists in exactly two places and nowhere else:
 - No globals, no `init()` side effects. Constructors take dependencies.
 - `viper` is imported only by `internal/config`; everything downstream receives
   a typed `*config.Config`, validated at load.
+- **Config layering**, lowest precedence first: code defaults ->
+  `configs/config.yaml` -> `configs/config.<APP_ENV>.yaml` -> `APP_*` variables.
+  `APP_ENV` is `local` (default), `staging` or `production`.
+- **Override naming**: `APP_` + the key path in upper case with every `.`
+  replaced by `_`. `http.shutdown_timeout` becomes `APP_HTTP_SHUTDOWN_TIMEOUT`.
+- **Adding a field to `Config` requires adding its default** in `setDefaults`.
+  Viper never consults the environment for a key it has not seen, so a field
+  without a default silently ignores its `APP_*` override.
+- **Secrets never live in a config file.** Per-environment files carry tuning
+  only; DSNs and credentials arrive through `APP_*`. Production deliberately
+  omits `postgres.dsn` so a misconfigured process fails validation instead of
+  falling back to a development database.
 - Errors are sentinels in `internal/model`, wrapped with `%w`. HTTP status
   mapping lives only in `internal/transport/http/error.go`.
 - Unmapped errors return a generic message. Never leak DSNs, table names or
