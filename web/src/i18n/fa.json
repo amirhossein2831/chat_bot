@@ -33,7 +33,16 @@
   "models": {
     "unavailable": "در دسترس نیست",
     "local": "محلی",
-    "inUse": "در حال استفاده"
+    "inUse": "در حال استفاده",
+    "back": "بازگشت",
+    "chooseProvider": "ارائه‌دهنده",
+    "countAvailable": "{{count}} مدل در دسترس",
+    "noneAvailable": "در دسترس نیست",
+    "providers": {
+      "local": "محلی",
+      "openai": "OpenAI",
+      "anthropic": "Anthropic"
+    }
   },
   "auth": {
     "email": "ایمیل",

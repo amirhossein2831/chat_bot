@@ -33,7 +33,16 @@
   "models": {
     "unavailable": "Unavailable",
     "local": "Local",
-    "inUse": "In use"
+    "inUse": "In use",
+    "back": "Back",
+    "chooseProvider": "Provider",
+    "countAvailable": "{{count}} available",
+    "noneAvailable": "None available",
+    "providers": {
+      "local": "Local",
+      "openai": "OpenAI",
+      "anthropic": "Anthropic"
+    }
   },
   "auth": {
     "email": "Email",
