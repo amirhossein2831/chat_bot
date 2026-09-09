@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { ProviderIcon } from "./ProviderIcon";
 import type { Model } from "./useModels";
 import { useModels } from "./useModels";
 
@@ -38,6 +39,7 @@ export function ModelPicker({ value, onChange }: Props) {
         onClick={() => (open ? close() : setOpen(true))}
         className="flex h-11 items-center gap-2 rounded-[9px] border border-line bg-surface px-3 text-[13px] md:h-9"
       >
+        {selected && <ProviderIcon provider={selected.provider} />}
         <Dot available={selected?.available} />
         <span className="font-medium">{selected?.id ?? "…"}</span>
         {selected?.tier === "local" && <span className="text-muted">· {t("models.local")}</span>}
@@ -62,6 +64,7 @@ export function ModelPicker({ value, onChange }: Props) {
                   className="mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium hover:bg-raised"
                 >
                   <Chevron className="rotate-90 text-muted rtl:-rotate-90" />
+                  <ProviderIcon provider={opened.provider} />
                   {t(`models.providers.${opened.provider}`, opened.provider)}
                 </button>
 
@@ -95,6 +98,15 @@ export function ModelPicker({ value, onChange }: Props) {
                   <li key={group.provider}>
                     <Row
                       available={group.available > 0}
+                      leading={
+                        <ProviderIcon
+                          provider={group.provider}
+                          className={[
+                            "size-[18px] shrink-0",
+                            group.available > 0 ? "" : "text-muted",
+                          ].join(" ")}
+                        />
+                      }
                       title={t(`models.providers.${group.provider}`, group.provider)}
                       subtitle={
                         group.available > 0
@@ -138,10 +150,11 @@ type RowProps = {
   available: boolean;
   disabled?: boolean;
   onClick: () => void;
+  leading?: React.ReactNode;
   trailing?: React.ReactNode;
 };
 
-function Row({ title, subtitle, available, disabled, onClick, trailing }: RowProps) {
+function Row({ title, subtitle, available, disabled, onClick, leading, trailing }: RowProps) {
   return (
     <button
       type="button"
@@ -149,7 +162,7 @@ function Row({ title, subtitle, available, disabled, onClick, trailing }: RowPro
       onClick={onClick}
       className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-start hover:bg-raised disabled:opacity-50 disabled:hover:bg-transparent"
     >
-      <Dot available={available} />
+      {leading ?? <Dot available={available} />}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[13.5px] font-medium">{title}</span>
         <span className="truncate text-xs text-muted">{subtitle}</span>
