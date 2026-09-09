@@ -64,15 +64,18 @@ export function LoginPage() {
 
           {mode === "register" && (
             <Field
-              label={t("auth.invite")}
+              label={t("auth.inviteOptional")}
+              hint={t("auth.inviteHelp")}
               value={invite}
               onChange={setInvite}
               error={fieldError(active.error, "invite")}
             />
           )}
 
-          {generalError(active.error) && (
-            <p className="text-sm text-red-600 dark:text-red-400">{generalError(active.error)}</p>
+          {generalError(active.error, mode) && (
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {generalError(active.error, mode)}
+            </p>
           )}
 
           <button
@@ -103,9 +106,10 @@ type FieldProps = {
   type?: string;
   autoComplete?: string;
   error?: string;
+  hint?: string;
 };
 
-function Field({ label, value, onChange, type = "text", autoComplete, error }: FieldProps) {
+function Field({ label, value, onChange, type = "text", autoComplete, error, hint }: FieldProps) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-[13px] font-medium text-muted">{label}</span>
@@ -116,6 +120,7 @@ function Field({ label, value, onChange, type = "text", autoComplete, error }: F
         onChange={(event) => onChange(event.target.value)}
         className="h-11 rounded-lg border border-line bg-surface px-3 text-[15px] outline-none focus:border-accent"
       />
+      {hint && !error && <span className="text-xs text-muted">{hint}</span>}
       {error && <span className="text-xs text-red-600 dark:text-red-400">{error}</span>}
     </label>
   );
@@ -134,11 +139,18 @@ function ruleMessage(field: string): string {
   return "این فیلد لازم است";
 }
 
-function generalError(error: unknown): string | undefined {
+// The gateway returns unauthorized for two different things: a wrong password
+// on login, and an invalid or already-used invite on registration. Only the
+// caller knows which one it asked for.
+function generalError(error: unknown, mode: Mode): string | undefined {
   if (!(error instanceof ApiError)) return undefined;
   if (error.fields?.length) return undefined;
 
-  if (error.code === "unauthorized") return "ایمیل یا گذرواژه درست نیست";
+  if (error.code === "unauthorized") {
+    return mode === "register"
+      ? "این کد دعوت نامعتبر است یا قبلاً استفاده شده. می‌توانید بدون کد ثبت‌نام کنید."
+      : "ایمیل یا گذرواژه درست نیست";
+  }
   if (error.code === "conflict") return "این ایمیل قبلاً ثبت شده است";
   return "خطایی رخ داد";
 }

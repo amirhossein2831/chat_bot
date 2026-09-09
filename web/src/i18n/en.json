@@ -1,13 +1,77 @@
 {
-  "app": { "name": "Assistant" },
-  "nav": { "newChat": "New chat", "prompts": "Prompt library", "memory": "Memory and settings", "back": "Back" },
-  "search": { "placeholder": "Search conversations", "results": "{{count}} results", "all": "All conversations", "empty": "No conversations found" },
-  "composer": { "placeholder": "Write a message…", "hint": "Enter to send · Shift+Enter for a new line", "send": "Send", "stop": "Stop" },
-  "chat": { "truncated": "Earlier messages were dropped to fit the model's context", "writing": "Writing", "regenerate": "Regenerate", "copy": "Copy", "branch": "{{current}} of {{total}}", "reconnecting": "Connection lost, reconnecting…" },
-  "models": { "unavailable": "Unavailable", "local": "Local", "inUse": "In use" },
-  "auth": { "email": "Email", "password": "Password", "invite": "Invite code", "login": "Log in", "register": "Sign up", "logout": "Log out", "haveAccount": "Have an account?", "noAccount": "No account?" },
-  "memory": { "title": "Memory and settings", "instructions": "Standing instruction", "instructionsHelp": "This is added to every conversation.", "facts": "What is remembered about you", "factsHelp": "Delete any of these and the assistant stops seeing it.", "add": "Add", "save": "Save", "delete": "Delete", "undo": "Undo" },
-  "prompts": { "title": "Prompt library", "subtitle": "Fill in the blanks and send.", "all": "All" },
-  "files": { "attach": "Attach a file", "extracting": "Extracting text", "ready": "Text extracted", "unsupported": "This format is not supported yet", "failed": "Extraction failed", "storageDown": "File upload is temporarily unavailable" },
-  "error": { "generic": "Something went wrong", "quota": "Today's allowance is used up", "modelUnavailable": "This model is unavailable" }
+  "app": {
+    "name": "Assistant"
+  },
+  "nav": {
+    "newChat": "New chat",
+    "prompts": "Prompt library",
+    "memory": "Memory and settings",
+    "back": "Back"
+  },
+  "search": {
+    "placeholder": "Search conversations",
+    "results": "{{count}} results",
+    "all": "All conversations",
+    "empty": "No conversations found"
+  },
+  "composer": {
+    "placeholder": "Write a message…",
+    "hint": "Enter to send · Shift+Enter for a new line",
+    "send": "Send",
+    "stop": "Stop"
+  },
+  "chat": {
+    "truncated": "Earlier messages were dropped to fit the model's context",
+    "writing": "Writing",
+    "regenerate": "Regenerate",
+    "copy": "Copy",
+    "branch": "{{current}} of {{total}}",
+    "reconnecting": "Connection lost, reconnecting…"
+  },
+  "models": {
+    "unavailable": "Unavailable",
+    "local": "Local",
+    "inUse": "In use"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "invite": "Invite code",
+    "login": "Log in",
+    "register": "Sign up",
+    "logout": "Log out",
+    "haveAccount": "Have an account?",
+    "noAccount": "No account?",
+    "inviteOptional": "Invite code (optional)",
+    "inviteHelp": "Enter one if you have it. It is not required."
+  },
+  "memory": {
+    "title": "Memory and settings",
+    "instructions": "Standing instruction",
+    "instructionsHelp": "This is added to every conversation.",
+    "facts": "What is remembered about you",
+    "factsHelp": "Delete any of these and the assistant stops seeing it.",
+    "add": "Add",
+    "save": "Save",
+    "delete": "Delete",
+    "undo": "Undo"
+  },
+  "prompts": {
+    "title": "Prompt library",
+    "subtitle": "Fill in the blanks and send.",
+    "all": "All"
+  },
+  "files": {
+    "attach": "Attach a file",
+    "extracting": "Extracting text",
+    "ready": "Text extracted",
+    "unsupported": "This format is not supported yet",
+    "failed": "Extraction failed",
+    "storageDown": "File upload is temporarily unavailable"
+  },
+  "error": {
+    "generic": "Something went wrong",
+    "quota": "Today's allowance is used up",
+    "modelUnavailable": "This model is unavailable"
+  }
 }
