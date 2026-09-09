@@ -79,10 +79,15 @@ Mapping exists in exactly two places and nowhere else:
 
 ## Testing
 
-- Pure units for `model`, `domain`, `mapper` — no database, no HTTP.
-- Services against in-memory fakes. No mocking library.
-- Repositories against testcontainers Postgres.
-- Provider clients against **golden SSE fixtures**, including frames split
-  mid-line. This is the highest-value test in the codebase.
-- `fx.ValidateApp` in a test, so DI wiring errors fail in CI rather than at
-  production startup.
+Test flows, not functions. A test earns its place by covering a path a user or
+a job actually takes: register then log in, send a message and watch it stream
+and persist, reserve quota then settle it, upload then extract. Do not write a
+test whose only subject is one small function's return value — it restates the
+implementation, and the flow test that matters would catch the same break.
+
+- Services against in-memory fakes, no database. No mocking library.
+- Repositories against testcontainers Postgres, exercising real SQL.
+- Provider clients against golden SSE fixtures, including frames split
+  mid-line. That is the highest-value test in the codebase.
+- Pure logic gets a test only when it encodes rules that are easy to get wrong
+  and invisible when broken, such as Persian normalisation.
