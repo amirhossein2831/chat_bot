@@ -57,6 +57,8 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
 
   const consume = useCallback(
     async (body: ReadableStream<Uint8Array>, signal: AbortSignal) => {
+      let terminated = false;
+
       await parseSSE(
         body,
         (event, data) => {
@@ -83,6 +85,7 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
           }
 
           if (event === "done" || event === "error") {
+            terminated = true;
             setState((current) => ({
               ...current,
               streaming: false,
@@ -93,6 +96,13 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
         },
         signal,
       );
+
+      // A body that ends without a terminal event leaves the view streaming
+      // forever, so the end of the body is treated as one.
+      if (!terminated && !signal.aborted) {
+        setState((current) => ({ ...current, streaming: false }));
+        finished.current();
+      }
     },
     [schedulePaint],
   );

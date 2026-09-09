@@ -8,6 +8,7 @@ import { Markdown } from "./Markdown";
 type Props = {
   messages: Message[];
   streamingText: string;
+  streaming: boolean;
   streamingId: string | null;
   awaiting: boolean;
   truncated: boolean;
@@ -20,6 +21,7 @@ type Props = {
 export function MessageList({
   messages,
   streamingText,
+  streaming,
   streamingId,
   awaiting,
   truncated,
@@ -55,8 +57,11 @@ export function MessageList({
               // Only the message this stream was told it is writing into shows
               // the buffer. Assuming it is the last one blanks the previous
               // answer for as long as a new send takes to be confirmed.
-              text={message.id === streamingId ? streamingText : message.content}
-              streaming={message.id === streamingId}
+              // Both conditions matter: the id alone keeps pointing at this
+              // message after the stream ends, and would leave it rendering an
+              // empty buffer for good.
+              text={streaming && message.id === streamingId ? streamingText : message.content}
+              streaming={streaming && message.id === streamingId}
               siblings={siblingsOf(message)}
               onSelectBranch={onSelectBranch}
             />

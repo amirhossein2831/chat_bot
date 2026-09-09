@@ -88,7 +88,12 @@ export function ChatPage() {
 
   useEffect(() => {
     const last = messages?.[messages.length - 1];
-    if (last?.role === "assistant" && last.status === "streaming" && !stream.streaming) {
+    if (
+      last?.role === "assistant" &&
+      last.status === "streaming" &&
+      !stream.streaming &&
+      last.id !== stream.messageId
+    ) {
       stream.resume(last.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -204,6 +209,7 @@ export function ChatPage() {
         <MessageList
           messages={shown}
           streamingText={stream.buffer}
+          streaming={stream.streaming}
           streamingId={stream.messageId}
           awaiting={awaiting}
           truncated={stream.truncated}
