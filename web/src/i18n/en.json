@@ -73,5 +73,9 @@
     "generic": "Something went wrong",
     "quota": "Today's allowance is used up",
     "modelUnavailable": "This model is unavailable"
+  },
+  "empty": {
+    "title": "How can I help?",
+    "subtitle": "Write your question, or pick a starting point from the prompt library."
   }
 }

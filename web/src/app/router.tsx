@@ -36,17 +36,13 @@ const router = createBrowserRouter([
       </RequireAuth>
     ),
     children: [
-      { index: true, element: <Empty /> },
+      { index: true, element: lazyRoute(<ChatPage />) },
       { path: "c/:id", element: lazyRoute(<ChatPage />) },
       { path: "prompts", element: lazyRoute(<PromptsPage />) },
       { path: "memory", element: lazyRoute(<MemoryPage />) },
     ],
   },
 ]);
-
-function Empty() {
-  return <div className="flex flex-1 items-center justify-center text-muted" />;
-}
 
 export function Router() {
   return <RouterProvider router={router} />;
