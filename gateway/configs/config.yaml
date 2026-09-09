@@ -1,23 +1,4 @@
 # Base configuration, shared by every environment.
-#
-# Layering, lowest precedence first:
-#   code defaults -> config.yaml -> config.<APP_ENV>.yaml -> APP_* env vars
-#
-# APP_ENV selects the overlay and defaults to "local" (local|staging|production).
-#
-# Any key can be overridden by an environment variable named APP_ plus the
-# key path in upper case, with every "." replaced by "_":
-#
-#   http.addr             ->  APP_HTTP_ADDR
-#   http.shutdown_timeout ->  APP_HTTP_SHUTDOWN_TIMEOUT
-#   postgres.dsn          ->  APP_POSTGRES_DSN
-#   postgres.max_conns    ->  APP_POSTGRES_MAX_CONNS
-#   redis.addr            ->  APP_REDIS_ADDR
-#   redis.db              ->  APP_REDIS_DB
-#
-# Never put secrets in this file or in a per-environment file; supply them
-# through APP_* variables.
-
 http:
   addr: ":8080"
   shutdown_timeout: 30

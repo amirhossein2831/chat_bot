@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/amirhossein2831/chat_bot/gateway/internal/testutil"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/util/testutil"
 )
 
 func TestHarnessAppliesMigrations(t *testing.T) {
