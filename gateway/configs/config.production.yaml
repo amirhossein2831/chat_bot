@@ -1,0 +1,6 @@
+http:
+  addr: ":8080"
+  shutdown_timeout: 60
+
+postgres:
+  max_conns: 50

@@ -1,0 +1,51 @@
+package model
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/amirhossein2831/chat_bot/gateway/internal/constants"
+)
+
+type Usage struct {
+	In            int
+	Out           int
+	CostUSDMicros int64
+}
+
+type Message struct {
+	ID             uuid.UUID     `db:"id"`
+	ConversationID uuid.UUID     `db:"conversation_id"`
+	ParentID       *uuid.UUID    `db:"parent_id"`
+	Role           Role          `db:"role"`
+	Content        string        `db:"content"`
+	ContentNorm    string        `db:"content_norm"`
+	Status         MessageStatus `db:"status"`
+	Model          string        `db:"model"`
+	TokensIn       int           `db:"tokens_in"`
+	TokensOut      int           `db:"tokens_out"`
+	CostUSDMicros  int64         `db:"cost_usd_micros"`
+	Error          *string       `db:"error"`
+	CreatedAt      time.Time     `db:"created_at"`
+}
+
+func (m *Message) IsTerminal() bool { return m.Status.Terminal() }
+
+// MarkComplete Quota is settled from this transition, so a second one would double-debit.
+func (m *Message) MarkComplete(u Usage) error {
+	if m.Status != MessageStatusStreaming {
+		return fmt.Errorf("%w: cannot complete a %s message", constants.ErrInvalidTransition, m.Status)
+	}
+	m.Status = MessageStatusComplete
+	m.TokensIn = u.In
+	m.TokensOut = u.Out
+	m.CostUSDMicros = u.CostUSDMicros
+	return nil
+}
+
+func (m *Message) MarkFailed(reason string) {
+	m.Status = MessageStatusFailed
+	m.Error = &reason
+}

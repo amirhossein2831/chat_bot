@@ -1,0 +1,7 @@
+# flush_interval -1 is required: without it Caddy buffers the whole SSE
+# response and delivers it in one burst, which looks exactly like a hung app.
+{$DOMAIN} {
+	reverse_proxy gateway:8080 {
+		flush_interval -1
+	}
+}
