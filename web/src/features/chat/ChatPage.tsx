@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -35,6 +35,7 @@ function pendingAssistant(at: number): Message {
     tokensIn: 0,
     tokensOut: 0,
     error: null,
+    siblings: [],
     createdAt: new Date(at).toISOString(),
   };
 }
@@ -61,6 +62,7 @@ function optimisticTurn(content: string, at: number): Message {
     tokensIn: 0,
     tokensOut: 0,
     error: null,
+    siblings: [],
     createdAt: new Date(at).toISOString(),
   };
 }
@@ -149,14 +151,9 @@ export function ChatPage() {
     void stream.send(id, content, chosenModel);
   };
 
-  const siblingsOf = useMemo(() => {
-    const byParent = new Map<string | null, string[]>();
-    for (const message of messages ?? []) {
-      const existing = byParent.get(message.parentId) ?? [];
-      byParent.set(message.parentId, [...existing, message.id]);
-    }
-    return (message: Message) => byParent.get(message.parentId) ?? [];
-  }, [messages]);
+  // The branches beside this one are named by the server: a thread is a single
+  // path, so nothing here could work them out on its own.
+  const siblingsOf = (message: Message) => message.siblings;
 
   // Whether the server's own copy of this turn has been fetched yet. Matching
   // on content instead would hide a message identical to the one before it.
@@ -236,6 +233,8 @@ export function ChatPage() {
           failed={false}
           siblingsOf={siblingsOf}
           onSelectBranch={(messageId) => switchBranch.mutate(messageId)}
+          onRegenerate={(messageId) => void stream.regenerate(messageId, chosenModel)}
+          onEdit={(messageId, content) => void stream.send(id, content, chosenModel, messageId)}
         />
       )}
 

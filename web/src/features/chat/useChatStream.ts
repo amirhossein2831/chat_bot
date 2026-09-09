@@ -165,8 +165,8 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
   );
 
   const send = useCallback(
-    async (conversationId: string, content: string, model?: string) => {
-      last.current = () => void send(conversationId, content, model);
+    async (conversationId: string, content: string, model?: string, editOf?: string) => {
+      last.current = () => void send(conversationId, content, model, editOf);
       controller.current?.abort();
       controller.current = new AbortController();
       pending.current = "";
@@ -181,7 +181,7 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conversation_id: conversationId, content, model }),
+          body: JSON.stringify({ conversation_id: conversationId, content, model, edit_of: editOf }),
           signal: controller.current.signal,
         });
 

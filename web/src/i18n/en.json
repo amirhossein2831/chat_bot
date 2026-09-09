@@ -32,7 +32,11 @@
     "quotaExceeded": "You have used today's message allowance. Try again tomorrow.",
     "notAllowed": "Your current plan does not include this model.",
     "retry": "Retry",
-    "disconnected": "The connection to the server was lost."
+    "disconnected": "The connection to the server was lost.",
+    "copied": "Copied",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "models": {
     "unavailable": "Unavailable",

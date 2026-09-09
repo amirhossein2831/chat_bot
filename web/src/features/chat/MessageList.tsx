@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Message } from "./chatApi";
 import { BranchSwitcher } from "./BranchSwitcher";
 import { Markdown } from "./Markdown";
+import { MessageActions } from "./MessageActions";
+import { MessageEditor } from "./MessageEditor";
 
 type Props = {
   messages: Message[];
@@ -15,6 +17,8 @@ type Props = {
   failed: boolean;
   siblingsOf: (message: Message) => string[];
   onSelectBranch: (messageId: string) => void;
+  onRegenerate: (messageId: string) => void;
+  onEdit: (messageId: string, content: string) => void;
 };
 
 export function MessageList({
@@ -27,6 +31,8 @@ export function MessageList({
   failed,
   siblingsOf,
   onSelectBranch,
+  onRegenerate,
+  onEdit,
 }: Props) {
   const { t } = useTranslation();
   const viewport = useRef<HTMLDivElement>(null);
@@ -96,7 +102,13 @@ export function MessageList({
             remounted and never replays its entry animation. */}
         {messages.map((message, index) =>
           message.role === "user" ? (
-            <UserTurn key={index} message={message} />
+            <UserTurn
+              key={index}
+              message={message}
+              siblings={siblingsOf(message)}
+              onSelectBranch={onSelectBranch}
+              onEdit={onEdit}
+            />
           ) : (
             <AssistantTurn
               key={index}
@@ -111,6 +123,7 @@ export function MessageList({
               streaming={streaming && message.id === streamingId}
               siblings={siblingsOf(message)}
               onSelectBranch={onSelectBranch}
+              onRegenerate={onRegenerate}
             />
           ),
         )}
@@ -153,15 +166,47 @@ function Notice({ children, tone }: { children: React.ReactNode; tone?: "error" 
   );
 }
 
-function UserTurn({ message }: { message: Message }) {
+type UserProps = {
+  message: Message;
+  siblings: string[];
+  onSelectBranch: (messageId: string) => void;
+  onEdit: (messageId: string, content: string) => void;
+};
+
+function UserTurn({ message, siblings, onSelectBranch, onEdit }: UserProps) {
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <MessageEditor
+        initial={message.content}
+        onCancel={() => setEditing(false)}
+        onSave={(content) => {
+          setEditing(false);
+          onEdit(message.id, content);
+        }}
+      />
+    );
+  }
+
   return (
-    <div dir="ltr" className="turn-in flex justify-end">
+    <div dir="ltr" className="group flex flex-col items-end gap-1">
       {/* Neutral, not accent-tinted: reserving colour for actions is what
           keeps a long thread calm to read. */}
       <div className="max-w-[82%] rounded-[var(--radius-bubble)] rounded-ee-[7px] bg-raised px-4 py-2.5 text-[15.5px] leading-[1.7]">
         <div dir="auto" className="whitespace-pre-wrap">
           {message.content}
         </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <BranchSwitcher siblings={siblings} current={message.id} onSelect={onSelectBranch} />
+        {/* The optimistic copy has no server id yet, so there is nothing to
+            branch from until it is confirmed. */}
+        <MessageActions
+          text={message.content}
+          onEdit={message.id === "pending" ? undefined : () => setEditing(true)}
+        />
       </div>
     </div>
   );
@@ -173,19 +218,35 @@ type AssistantProps = {
   streaming: boolean;
   siblings: string[];
   onSelectBranch: (messageId: string) => void;
+  onRegenerate: (messageId: string) => void;
 };
 
-function AssistantTurn({ message, text, streaming, siblings, onSelectBranch }: AssistantProps) {
+function AssistantTurn({
+  message,
+  text,
+  streaming,
+  siblings,
+  onSelectBranch,
+  onRegenerate,
+}: AssistantProps) {
   // The reply carries its own direction: a Persian answer reads from the
   // right, an English one from the left, whatever the interface language is.
   return (
     <div
       dir="auto"
-      className={["turn-in flex flex-col gap-3 text-[15.5px]", streaming && text ? "caret" : ""].join(" ")}
+      className={["group flex flex-col gap-2 text-[15.5px]", streaming && text ? "caret" : ""].join(" ")}
     >
       {streaming && !text ? <Thinking /> : <Markdown>{text}</Markdown>}
 
-      <BranchSwitcher siblings={siblings} current={message.id} onSelect={onSelectBranch} />
+      <div className="flex items-center gap-2">
+        <BranchSwitcher siblings={siblings} current={message.id} onSelect={onSelectBranch} />
+
+        {/* An answer still being written has nothing settled to copy, and
+            regenerating it would race the generation it is replacing. */}
+        {!streaming && text && (
+          <MessageActions text={text} onRegenerate={() => onRegenerate(message.id)} />
+        )}
+      </div>
     </div>
   );
 }

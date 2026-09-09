@@ -1,9 +1,32 @@
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
+
+import { CodeBlock } from "./CodeBlock";
 
 // A half-arrived code fence renders as broken output that flickers when it
 // completes. Counting fences and closing an odd one costs nothing.
+type HastNode = { type?: string; value?: string; properties?: { className?: unknown }; children?: HastNode[] };
+
+function textOf(node: unknown): string {
+  const current = node as HastNode | undefined;
+  if (!current) return "";
+  if (current.type === "text") return current.value ?? "";
+  return (current.children ?? []).map(textOf).join("");
+}
+
+function languageOf(node: unknown): string {
+  const code = (node as HastNode | undefined)?.children?.[0];
+  const names = code?.properties?.className;
+  if (!Array.isArray(names)) return "text";
+
+  const tag = names.find(
+    (name): name is string => typeof name === "string" && name.startsWith("language-"),
+  );
+  return tag ? tag.slice("language-".length) : "text";
+}
+
 function balanceFences(markdown: string): string {
   const fences = markdown.match(/```/g)?.length ?? 0;
   return fences % 2 === 1 ? `${markdown}\n\`\`\`` : markdown;
@@ -17,15 +40,15 @@ export const Markdown = memo(function Markdown({ children }: { children: string 
     <div className="prose-chat flex flex-col gap-4 leading-[1.75]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[[rehypeHighlight, { detect: true, ignoreMissing: true }]]}
         components={{
-          // Code is always LTR, whatever direction surrounds it.
-          pre: ({ children }) => (
-            <pre
-              dir="ltr"
-              className="overflow-x-auto rounded-[14px] bg-raised p-4 font-mono text-[13px] leading-relaxed"
-            >
+          // Code is always LTR, whatever direction surrounds it. The source is
+          // read off the original node because by this point the rendered
+          // children are highlighting spans, not the text someone wants copied.
+          pre: ({ node, children }) => (
+            <CodeBlock language={languageOf(node)} source={textOf(node)}>
               {children}
-            </pre>
+            </CodeBlock>
           ),
           code: ({ children }) => <code dir="ltr">{children}</code>,
           a: ({ href, children }) => (

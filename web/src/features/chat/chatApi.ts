@@ -10,6 +10,7 @@ type MessageWire = {
   tokens_in: number;
   tokens_out: number;
   error?: string | null;
+  siblings?: string[] | null;
   created_at: string;
 };
 
@@ -23,6 +24,7 @@ export type Message = {
   tokensIn: number;
   tokensOut: number;
   error: string | null;
+  siblings: string[];
   createdAt: string;
 };
 
@@ -36,6 +38,7 @@ const toMessage = (wire: MessageWire): Message => ({
   tokensIn: wire.tokens_in,
   tokensOut: wire.tokens_out,
   error: wire.error ?? null,
+  siblings: wire.siblings ?? [],
   createdAt: wire.created_at,
 });
 

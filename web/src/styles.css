@@ -222,3 +222,75 @@ code {
   border: none;
   border-top: 1px solid var(--color-line);
 }
+
+/* Syntax colours derived from the interface palette rather than imported from
+   a highlight.js theme, so code follows light and dark with everything else. */
+:root {
+  --code-keyword: oklch(0.52 0.19 305);
+  --code-string: oklch(0.5 0.14 150);
+  --code-number: oklch(0.55 0.15 45);
+  --code-comment: oklch(0.64 0.02 250);
+  --code-name: oklch(0.48 0.16 250);
+  --code-attr: oklch(0.52 0.13 195);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --code-keyword: oklch(0.78 0.15 305);
+    --code-string: oklch(0.79 0.14 150);
+    --code-number: oklch(0.8 0.13 60);
+    --code-comment: oklch(0.6 0.02 250);
+    --code-name: oklch(0.76 0.13 250);
+    --code-attr: oklch(0.79 0.11 195);
+  }
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--code-comment);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag,
+.hljs-formula {
+  color: var(--code-keyword);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-meta-string {
+  color: var(--code-string);
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: var(--code-number);
+}
+.hljs-title,
+.hljs-section,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--code-name);
+}
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-type,
+.hljs-built_in,
+.hljs-params {
+  color: var(--code-attr);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}
+.hljs-deletion {
+  color: oklch(0.55 0.19 25);
+}
