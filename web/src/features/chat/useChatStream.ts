@@ -6,6 +6,7 @@ import { stopGeneration } from "./chatApi";
 const MAX_BACKOFF_MS = 8_000;
 
 type StreamState = {
+  sent: string | null;
   buffer: string;
   streaming: boolean;
   messageId: string | null;
@@ -16,6 +17,7 @@ type StreamState = {
 };
 
 const IDLE: StreamState = {
+  sent: null,
   buffer: "",
   streaming: false,
   messageId: null,
@@ -130,7 +132,10 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
       controller.current = new AbortController();
       pending.current = "";
       attempt.current = 0;
-      setState({ ...IDLE, streaming: true });
+      // The turn is shown from here, not from the server's copy of it: waiting
+      // for that leaves the message invisible for as long as the model takes
+      // to produce its first token.
+      setState({ ...IDLE, sent: content, streaming: true });
 
       try {
         const response = await fetch("/api/v1/chat", {

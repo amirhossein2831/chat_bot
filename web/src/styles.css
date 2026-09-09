@@ -80,3 +80,36 @@ code {
   background: var(--color-line);
   border-radius: 99px;
 }
+
+@keyframes turn-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes thinking {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.turn-in {
+  animation: turn-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.thinking-dot {
+  animation: thinking 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-in,
+  .thinking-dot {
+    animation: none;
+  }
+}

@@ -9,6 +9,7 @@ type Props = {
   messages: Message[];
   streamingText: string;
   streaming: boolean;
+  awaiting: boolean;
   truncated: boolean;
   reconnecting: boolean;
   failed: boolean;
@@ -20,6 +21,7 @@ export function MessageList({
   messages,
   streamingText,
   streaming,
+  awaiting,
   truncated,
   reconnecting,
   failed,
@@ -30,8 +32,8 @@ export function MessageList({
   const bottom = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end" });
-  }, [messages.length, streamingText]);
+    bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [messages.length, streamingText, awaiting]);
 
   return (
     <div className="flex flex-1 justify-center overflow-y-auto px-4 pt-6 md:px-7">
@@ -40,12 +42,15 @@ export function MessageList({
         {reconnecting && <Notice>{t("chat.reconnecting")}</Notice>}
         {failed && <Notice tone="error">{t("chat.failed")}</Notice>}
 
-        {messages.map((message) =>
+        {/* Keyed by position, not id: the optimistic user turn and the server
+            copy that replaces it share a slot, so the bubble is never
+            remounted and never replays its entry animation. */}
+        {messages.map((message, index) =>
           message.role === "user" ? (
-            <UserTurn key={message.id} message={message} />
+            <UserTurn key={index} message={message} />
           ) : (
             <AssistantTurn
-              key={message.id}
+              key={index}
               message={message}
               // The last assistant message is the one being written into, so
               // while streaming its stored content is stale by design.
@@ -61,8 +66,24 @@ export function MessageList({
           ),
         )}
 
+        {awaiting && <Thinking />}
+
         <div ref={bottom} />
       </div>
+    </div>
+  );
+}
+
+function Thinking() {
+  return (
+    <div dir="auto" className="flex items-center gap-1.5 py-1">
+      {[0, 1, 2].map((index) => (
+        <span
+          key={index}
+          className="thinking-dot size-1.5 rounded-full bg-muted"
+          style={{ animationDelay: `${index * 160}ms` }}
+        />
+      ))}
     </div>
   );
 }
@@ -88,7 +109,7 @@ function Notice({ children, tone }: { children: React.ReactNode; tone?: "error" 
 
 function UserTurn({ message }: { message: Message }) {
   return (
-    <div dir="ltr" className="flex justify-end">
+    <div dir="ltr" className="turn-in flex justify-end">
       <div className="max-w-[85%] rounded-[16px] rounded-ee-[5px] bg-accent-soft px-4 py-2.5 text-[15px]">
         <div dir="auto" className="whitespace-pre-wrap">
           {message.content}
@@ -112,8 +133,8 @@ function AssistantTurn({ message, text, streaming, siblings, onSelectBranch }: A
   // The reply carries its own direction: a Persian answer reads from the
   // right, an English one from the left, whatever the interface language is.
   return (
-    <div dir="auto" className="flex flex-col gap-3">
-      <Markdown>{text}</Markdown>
+    <div dir="auto" className="turn-in flex flex-col gap-3">
+      {streaming && !text ? <Thinking /> : <Markdown>{text}</Markdown>}
 
       <div className="flex items-center gap-3.5">
         <BranchSwitcher siblings={siblings} current={message.id} onSelect={onSelectBranch} />

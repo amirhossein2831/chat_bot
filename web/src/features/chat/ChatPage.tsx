@@ -15,6 +15,26 @@ import { useSwitchBranch, useThread } from "./useThread";
 
 type PendingSend = { pending?: string; model?: string };
 
+function optimisticTurn(content: string): Message {
+  return {
+    id: "pending",
+    parentId: null,
+    role: "user",
+    content,
+    status: "complete",
+    model: "",
+    tokensIn: 0,
+    tokensOut: 0,
+    error: null,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function hasStreamingTurn(messages: Message[]): boolean {
+  const last = messages[messages.length - 1];
+  return last?.role === "assistant";
+}
+
 export function ChatPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -90,7 +110,20 @@ export function ChatPage() {
     return (message: Message) => byParent.get(message.parentId) ?? [];
   }, [messages]);
 
-  const empty = !id || ((messages ?? []).length === 0 && !stream.streaming);
+  // The optimistic turn is dropped as soon as the server's own copy of it
+  // arrives, so the same message is never on screen twice.
+  const shown = useMemo(() => {
+    const thread = messages ?? [];
+    if (stream.sent === null) return thread;
+
+    const lastUser = [...thread].reverse().find((message) => message.role === "user");
+    if (lastUser?.content === stream.sent) return thread;
+
+    return [...thread, optimisticTurn(stream.sent)];
+  }, [messages, stream.sent]);
+
+  const empty = !id || (shown.length === 0 && !stream.streaming);
+  const awaiting = stream.streaming && !stream.buffer && !hasStreamingTurn(shown);
 
   return (
     <>
@@ -137,9 +170,10 @@ export function ChatPage() {
         </div>
       ) : (
         <MessageList
-          messages={messages ?? []}
+          messages={shown}
           streamingText={stream.buffer}
           streaming={stream.streaming}
+          awaiting={awaiting}
           truncated={stream.truncated}
           reconnecting={stream.reconnecting}
           failed={false}
