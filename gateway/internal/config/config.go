@@ -1,30 +1,3 @@
-// Package config loads and validates application configuration.
-//
-// This is the only package that imports viper. Everything downstream receives
-// a typed *Config, so a renamed key breaks compilation instead of production.
-//
-// Precedence, lowest to highest:
-//
-//	code defaults  ->  config.yaml  ->  config.<env>.yaml  ->  APP_* env vars
-//
-// The environment is chosen by APP_ENV and defaults to "local". Secrets belong
-// in the environment, never in a committed per-environment file.
-//
-// # Environment variable naming
-//
-// Any key can be overridden by an environment variable named APP_ plus the
-// key's path in upper case with every "." replaced by "_":
-//
-//	env                     ->  APP_ENV
-//	http.addr               ->  APP_HTTP_ADDR
-//	http.shutdown_timeout   ->  APP_HTTP_SHUTDOWN_TIMEOUT
-//	postgres.dsn            ->  APP_POSTGRES_DSN
-//	postgres.max_conns      ->  APP_POSTGRES_MAX_CONNS
-//	redis.addr              ->  APP_REDIS_ADDR
-//	redis.db                ->  APP_REDIS_DB
-//
-// A key that is not registered in setDefaults is never consulted in the
-// environment, so adding a field to Config also requires adding its default.
 package config
 
 import (
@@ -69,8 +42,6 @@ type RedisConfig struct {
 	DB   int    `mapstructure:"db"   validate:"min=0"`
 }
 
-// Load reads configuration from the directory named by APP_CONFIG_DIR, or
-// ./configs when that is unset.
 func Load() (*Config, error) {
 	dir := os.Getenv("APP_CONFIG_DIR")
 	if dir == "" {
@@ -79,8 +50,6 @@ func Load() (*Config, error) {
 	return LoadFrom(dir)
 }
 
-// LoadFrom reads configuration from an explicit directory. Tests use this to
-// point at a temporary directory instead of the repository's configs/.
 func LoadFrom(dir string) (*Config, error) {
 	env := environment()
 
@@ -92,8 +61,6 @@ func LoadFrom(dir string) (*Config, error) {
 	v.AutomaticEnv()
 	setDefaults(v, env)
 
-	// Base file, then the environment overlay. Both are optional: a container
-	// configured entirely through APP_* variables is a valid deployment.
 	v.SetConfigName("config")
 	if err := readOptional(v.ReadInConfig); err != nil {
 		return nil, fmt.Errorf("reading config.yaml: %w", err)
@@ -120,17 +87,12 @@ func readOptional(read func() error) error {
 		return nil
 	}
 	var notFound viper.ConfigFileNotFoundError
-	if errors.As(err, &notFound) {
-		return nil
-	}
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.As(err, &notFound) || errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	return err
 }
 
-// environment is read straight from the process environment rather than
-// through viper, because it selects which file viper reads.
 func environment() string {
 	if e := strings.TrimSpace(os.Getenv("APP_ENV")); e != "" {
 		return e
@@ -138,12 +100,9 @@ func environment() string {
 	return EnvLocal
 }
 
-// setDefaults registers every key the application reads.
-//
-// This is not only about defaults: viper's Unmarshal walks the keys it knows
-// about, and a key registered nowhere is never consulted in the environment.
-// Required values are registered with an empty default so that APP_* overrides
-// are picked up and validation catches them when they are absent.
+// Every key needs an entry here, including required ones with an empty value:
+// viper never consults the environment for a key it has not seen, so a missing
+// entry silently ignores its APP_* override.
 func setDefaults(v *viper.Viper, env string) {
 	v.SetDefault("env", env)
 

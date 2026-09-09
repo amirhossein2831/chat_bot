@@ -1,4 +1,3 @@
-// Command gateway is the public API surface of the platform.
 package main
 
 import (
@@ -9,18 +8,13 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/infrastructure/postgres"
 )
 
-// options builds the application graph.
-//
-// It is a function rather than a variable so that the graph validated in tests
-// is byte-for-byte the graph main runs. Every module registers itself here.
 func options() fx.Option {
 	return fx.Options(
 		config.Module,
 		postgres.Module,
 
-		// fx constructs lazily: without an invocation nothing is built, and a
-		// broken configuration or an unreachable database would never surface.
-		// These force construction so failures happen at boot, loudly.
+		// fx constructs lazily; without these nothing is built and a broken
+		// config or unreachable database never surfaces.
 		fx.Invoke(func(*config.Config) {}),
 		fx.Invoke(func(*pgxpool.Pool) {}),
 	)

@@ -6,8 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Conversation is the root of a message tree. HeadMessageID names the leaf of
-// the branch currently shown; switching branches moves this pointer.
 type Conversation struct {
 	ID            uuid.UUID  `db:"id"`
 	UserID        uuid.UUID  `db:"user_id"`

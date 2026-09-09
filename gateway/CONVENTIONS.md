@@ -36,6 +36,13 @@ Mapping exists in exactly two places and nowhere else:
 
 ## Hard rules
 
+- **No comments unless removing one would let someone break the code.** Names
+  and structure carry the meaning. Write a comment only when it is one of:
+  a non-obvious constraint where the obvious-looking edit is wrong (`WriteTimeout`
+  must stay 0, every config key needs a default), an external quirk that cannot
+  be inferred from the code, or a command someone must run. Never restate what
+  the code does, never add package or section banners, never leave a comment
+  that would still be true if the code changed.
 - `context.Context` is the first parameter, never a struct field.
 - No globals, no `init()` side effects. Constructors take dependencies.
 - `viper` is imported only by `internal/config`; everything downstream receives

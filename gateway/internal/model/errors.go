@@ -2,8 +2,6 @@ package model
 
 import "errors"
 
-// Sentinel errors. Services wrap these with %w; internal/transport/http is the
-// only place that turns them into status codes.
 var (
 	ErrNotFound          = errors.New("not found")
 	ErrUnauthorized      = errors.New("unauthorized")

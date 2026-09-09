@@ -22,9 +22,6 @@ func TestHarnessAppliesMigrations(t *testing.T) {
 	require.Equal(t, 2, n)
 }
 
-// The extensions are what make citext emails and trigram Persian search work.
-// A migration that silently failed to create them would only surface much
-// later, as case-sensitive logins or a sequential scan on every search.
 func TestHarnessEnablesRequiredExtensions(t *testing.T) {
 	pool := testutil.NewPostgres(t)
 

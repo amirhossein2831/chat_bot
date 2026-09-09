@@ -72,7 +72,6 @@ func TestEnvVarBeatsEnvironmentFile(t *testing.T) {
 	require.Equal(t, ":9999", cfg.HTTP.Addr)
 }
 
-// Secrets belong in the environment, never in a committed production file.
 func TestSecretsCanComeFromEnvironmentAlone(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_POSTGRES_DSN", "postgres://secret@prod:5432/db")
@@ -124,9 +123,6 @@ func TestAppliesDefaults(t *testing.T) {
 	require.Equal(t, 0, cfg.Redis.DB)
 }
 
-// Pins the override convention: APP_ + key path, upper case, "." -> "_".
-// The shutdown_timeout case matters because the key already contains an
-// underscore, so the replacer must not mangle it.
 func TestEnvVarNamingConvention(t *testing.T) {
 	t.Setenv("APP_ENV", "staging")
 	t.Setenv("APP_HTTP_ADDR", ":7000")

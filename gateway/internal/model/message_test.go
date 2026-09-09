@@ -41,8 +41,6 @@ func TestStreamingMessageIsNotTerminal(t *testing.T) {
 	require.False(t, Message{Status: StatusStreaming}.IsTerminal())
 }
 
-// Cost is money and must never become a float. This pins the type so a later
-// refactor cannot quietly widen it.
 func TestCostIsIntegerMicros(t *testing.T) {
 	m := Message{Status: StatusStreaming}
 	require.NoError(t, m.MarkComplete(Usage{CostUSDMicros: 1}))

@@ -1,5 +1,3 @@
-// Package testutil provides integration-test fixtures. It is only imported
-// from _test.go files.
 package testutil
 
 import (
@@ -11,7 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib" // database/sql driver for goose
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -19,21 +17,15 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// defaultImage is pinned to a tag available locally. Docker Hub is not
-// reachable from here and the configured pull-through mirror refuses, so the
-// image must already be present. Override with TEST_POSTGRES_IMAGE where a
-// registry is available.
+// Docker Hub is unreachable here and the configured mirror refuses, so the
+// image must already be present locally. Override where a registry works.
 const defaultImage = "postgres:16-alpine"
 
-// NewPostgres starts a disposable Postgres, applies every migration, and
-// returns a pool. The container is removed when the test finishes.
 func NewPostgres(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	ctx := context.Background()
 
-	// Ryuk is testcontainers' reaper container, and its image cannot be pulled
-	// here. Containers are terminated explicitly in the cleanup below, so the
-	// reaper is not needed.
+	// Ryuk's image cannot be pulled here; containers are terminated below.
 	t.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
 
 	image := os.Getenv("TEST_POSTGRES_IMAGE")
@@ -79,9 +71,8 @@ func applyMigrations(t *testing.T, dsn string) {
 	require.NoError(t, goose.Up(db, migrationsDir(t)))
 }
 
-// migrationsDir walks up from the working directory to find migrations/.
-// A fixed relative path would break the moment this helper is called from a
-// package at a different depth.
+// Walks up rather than using a fixed relative path, which would only be
+// correct for callers at one particular directory depth.
 func migrationsDir(t *testing.T) string {
 	t.Helper()
 

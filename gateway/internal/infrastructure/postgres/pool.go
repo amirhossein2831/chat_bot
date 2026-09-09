@@ -1,5 +1,3 @@
-// Package postgres owns the database connection, and nothing else. Queries
-// live in internal/repository.
 package postgres
 
 import (
@@ -12,8 +10,6 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
 )
 
-// NewPool builds the connection pool and ties its lifetime to the fx
-// application, so shutdown closes connections instead of dropping them.
 func NewPool(lc fx.Lifecycle, cfg *config.Config) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.Postgres.DSN)
 	if err != nil {
@@ -27,8 +23,6 @@ func NewPool(lc fx.Lifecycle, cfg *config.Config) (*pgxpool.Pool, error) {
 	}
 
 	lc.Append(fx.Hook{
-		// Ping on start so an unreachable database fails the boot rather than
-		// the first request that happens to need it.
 		OnStart: func(ctx context.Context) error {
 			if err := pool.Ping(ctx); err != nil {
 				return fmt.Errorf("pinging postgres: %w", err)
