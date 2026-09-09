@@ -11,6 +11,7 @@ import (
 	pgrepo "github.com/amirhossein2831/chat_bot/gateway/internal/repository/postgres"
 	redisrepo "github.com/amirhossein2831/chat_bot/gateway/internal/repository/redis"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
+	chatservice "github.com/amirhossein2831/chat_bot/gateway/internal/service/chat"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/conversation"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/quota"
 )
@@ -36,6 +37,12 @@ var Module = fx.Module("repository",
 		fx.Annotate(
 			func(db *pgxpool.Pool) *pgrepo.UsageRepository { return pgrepo.NewUsageRepository(db) },
 			fx.As(new(quota.Ledger)),
+		),
+		fx.Annotate(
+			func(db *pgxpool.Pool) *pgrepo.ConversationRepository {
+				return pgrepo.NewConversationRepository(db)
+			},
+			fx.As(new(chatservice.Conversations)),
 		),
 		fx.Annotate(
 			func(client *redis.Client) *redisrepo.QuotaRepository {
