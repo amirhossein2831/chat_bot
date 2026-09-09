@@ -18,8 +18,14 @@ export function MessageEditor({ initial, onSave, onCancel }: Props) {
 
     element.style.height = "auto";
     element.style.height = `${element.scrollHeight}px`;
-    element.setSelectionRange(element.value.length, element.value.length);
   }, [value]);
+
+  // Placing the caret belongs to opening the editor, not to typing in it:
+  // doing it on every change drags the cursor to the end mid-edit.
+  useLayoutEffect(() => {
+    const element = textarea.current;
+    element?.setSelectionRange(element.value.length, element.value.length);
+  }, []);
 
   const save = () => {
     const next = value.trim();
