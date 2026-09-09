@@ -11,6 +11,7 @@ import (
 	pgrepo "github.com/amirhossein2831/chat_bot/gateway/internal/repository/postgres"
 	redisrepo "github.com/amirhossein2831/chat_bot/gateway/internal/repository/redis"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/service/conversation"
 )
 
 var Module = fx.Module("repository",
@@ -24,6 +25,12 @@ var Module = fx.Module("repository",
 				return redisrepo.NewSessionRepository(client, sessionTTL(cfg))
 			},
 			fx.As(new(auth.Sessions)),
+		),
+		fx.Annotate(
+			func(db *pgxpool.Pool) *pgrepo.ConversationRepository {
+				return pgrepo.NewConversationRepository(db)
+			},
+			fx.As(new(conversation.Repository)),
 		),
 	),
 )

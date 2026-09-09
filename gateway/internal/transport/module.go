@@ -8,6 +8,7 @@ import (
 
 	httptransport "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/auth"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/conversation"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/health"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/router"
 )
@@ -19,6 +20,10 @@ var Module = fx.Module("transport",
 		func(mux *chi.Mux) http.Handler { return mux },
 
 		fx.Annotate(auth.NewController,
+			fx.As(new(router.Registrar)),
+			fx.ResultTags(`group:"routes"`),
+		),
+		fx.Annotate(conversation.NewController,
 			fx.As(new(router.Registrar)),
 			fx.ResultTags(`group:"routes"`),
 		),
