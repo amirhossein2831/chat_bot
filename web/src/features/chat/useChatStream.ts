@@ -12,6 +12,7 @@ type StreamState = {
   truncated: boolean;
   reconnecting: boolean;
   failed: boolean;
+  failureCode: string | null;
 };
 
 const IDLE: StreamState = {
@@ -21,6 +22,7 @@ const IDLE: StreamState = {
   truncated: false,
   reconnecting: false,
   failed: false,
+  failureCode: null,
 };
 
 export function useChatStream(onFinished: () => void, onStarted?: () => void) {
@@ -140,7 +142,16 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
         });
 
         if (!response.ok || !response.body) {
-          setState((current) => ({ ...current, streaming: false, failed: true }));
+          const payload = await response.json().catch(() => ({ code: "unknown" }));
+          setState((current) => ({
+            ...current,
+            streaming: false,
+            failed: true,
+            failureCode: String(payload.code ?? "unknown"),
+          }));
+          // The turn was persisted before dispatch failed, so the thread is
+          // refetched: otherwise the message the user just sent disappears.
+          finished.current();
           return;
         }
 
@@ -148,6 +159,7 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
         setState((current) => ({ ...current, streaming: false, failed: true }));
+        finished.current();
       }
     },
     [consume],

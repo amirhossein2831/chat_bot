@@ -27,7 +27,8 @@
     "copy": "Copy",
     "branch": "{{current}} of {{total}}",
     "reconnecting": "Connection lost, reconnecting…",
-    "failed": "No reply. The model is unavailable or the request failed."
+    "failed": "No reply. The model is unavailable or the request failed.",
+    "modelDown": "This model is unavailable right now. Your message was saved; try again later."
   },
   "models": {
     "unavailable": "Unavailable",

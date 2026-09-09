@@ -78,7 +78,35 @@ func (r *Registry) Stream(ctx context.Context, req provider.ChatRequest) (<-chan
 	if err != nil {
 		return nil, err
 	}
-	return target.Stream(ctx, req)
+
+	deltas, err := target.Stream(ctx, req)
+	if err != nil {
+		// A real request failing is better evidence than a probe that has not
+		// run yet: without this the tier stays "available" for up to the probe
+		// interval while every request fails.
+		r.markUnavailable(r.providerNames[req.Model])
+		return nil, err
+	}
+	return deltas, nil
+}
+
+func (r *Registry) markUnavailable(name string) {
+	if name == "" {
+		return
+	}
+
+	r.mu.Lock()
+	changed := r.available[name]
+	r.available[name] = false
+	r.mu.Unlock()
+
+	if changed {
+		r.log.Warn("provider marked unavailable after a failed request",
+			zap.String("provider", name))
+		if r.metrics != nil {
+			r.metrics.SetProviderAvailable(name, false)
+		}
+	}
 }
 
 func (r *Registry) Health(context.Context) error { return nil }

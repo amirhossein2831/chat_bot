@@ -114,6 +114,18 @@ export function ChatPage() {
         </div>
       </header>
 
+      {stream.failed && (
+        <div className="flex justify-center px-4 pt-4">
+          <div className="flex items-center gap-2.5 rounded-full bg-red-500/10 px-3.5 py-1.5 text-xs text-red-600 dark:text-red-400">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v4.5M12 16h.01" />
+            </svg>
+            {t(stream.failureCode === "model_unavailable" ? "chat.modelDown" : "chat.failed")}
+          </div>
+        </div>
+      )}
+
       {empty ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
           <div className="flex size-12 items-center justify-center rounded-xl bg-accent-soft">
@@ -131,7 +143,7 @@ export function ChatPage() {
           streaming={stream.streaming}
           truncated={stream.truncated}
           reconnecting={stream.reconnecting}
-          failed={stream.failed}
+          failed={false}
           siblingsOf={siblingsOf}
           onSelectBranch={(messageId) => switchBranch.mutate(messageId)}
         />

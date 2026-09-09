@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -127,6 +128,7 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 
 	upstream, err := s.completer.Stream(genCtx, toProviderRequest(prompt, modelID))
 	if err != nil {
+		err = fmt.Errorf("%w: %s", constants.ErrModelUnavailable, err)
 		cancel()
 		_ = s.budget.Release(context.WithoutCancel(ctx), reservation)
 		assistant.MarkFailed(err.Error())
