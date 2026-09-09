@@ -9,7 +9,6 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/constants"
-	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/httperr"
 )
 
 const maxBodyBytes = 1 << 20
@@ -47,6 +46,6 @@ func Decode(r *http.Request, target any) error {
 }
 
 func Error(w http.ResponseWriter, err error) {
-	status, payload := httperr.Map(err)
+	status, payload := mapError(err)
 	JSON(status, payload).write(w)
 }

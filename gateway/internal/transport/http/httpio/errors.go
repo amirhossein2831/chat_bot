@@ -7,6 +7,8 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/constants"
 )
 
+const internalCode = "internal_error"
+
 type errorPayload struct {
 	Error string `json:"error"`
 	Code  string `json:"code"`
@@ -30,11 +32,6 @@ var mappings = []mapping{
 	{constants.ErrContextTooLarge, http.StatusRequestEntityTooLarge, "context_too_large"},
 }
 
-const internalCode = "internal_error"
-
-// mapError decides what the client is allowed to see. An unmapped error
-// carries DSNs, table names and upstream detail, so its message is replaced
-// rather than forwarded.
 func mapError(err error) (int, errorPayload) {
 	for _, m := range mappings {
 		if errors.Is(err, m.err) {
