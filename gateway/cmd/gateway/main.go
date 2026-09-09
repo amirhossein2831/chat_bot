@@ -13,6 +13,7 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service"
 	httptransport "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/router"
 )
 
 func options() fx.Option {
@@ -22,6 +23,7 @@ func options() fx.Option {
 		repository.Module,
 		service.Module,
 		controller.Module,
+		router.Module,
 		httptransport.Module,
 
 		// fx constructs lazily; without this nothing is built and a broken
