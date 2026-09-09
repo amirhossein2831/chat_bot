@@ -51,6 +51,17 @@ export function Sidebar() {
           {t("nav.newChat")}
         </button>
 
+        <NavLink
+          to="/prompts"
+          onClick={() => setSidebarOpen(false)}
+          className="flex h-11 w-full items-center gap-1.5 rounded-[9px] px-2.5 text-sm text-muted hover:bg-surface md:h-9"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 5h16M4 12h16M4 19h10" />
+          </svg>
+          {t("nav.prompts")}
+        </NavLink>
+
         <div className="relative flex items-center">
           <svg
             width="15"
