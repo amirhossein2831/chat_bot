@@ -27,6 +27,15 @@ func (t Thread) Head() (model.Message, bool) {
 	return t.Messages[len(t.Messages)-1], true
 }
 
+// WithoutHead is what a regeneration builds its prompt from: the newest turn
+// becomes the input again rather than staying part of the history.
+func (t Thread) WithoutHead() Thread {
+	if len(t.Messages) == 0 {
+		return t
+	}
+	return Thread{Messages: t.Messages[:len(t.Messages)-1]}
+}
+
 func (t Thread) TokenEstimate() int {
 	total := 0
 	for _, m := range t.Messages {

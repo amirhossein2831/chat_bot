@@ -30,6 +30,21 @@ type SendCommand struct {
 	Model          string
 }
 
+type RegenerateCommand struct {
+	UserID    uuid.UUID
+	MessageID uuid.UUID
+	Model     string
+}
+
+type dispatchCommand struct {
+	UserID    uuid.UUID
+	ModelID   string
+	Prompt    domain.PromptContext
+	Assistant model.Message
+	UserText  string
+	Persist   func(context.Context, model.Message) error
+}
+
 type Started struct {
 	MessageID uuid.UUID
 	Truncated bool
@@ -102,12 +117,6 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 		return Started{}, constants.ErrContextTooLarge
 	}
 
-	reservation, err := s.budget.Reserve(ctx, cmd.UserID, modelID, prompt.TokenEstimate(), defaultMaxTokens)
-	if err != nil {
-		s.metrics.IncQuotaRejection(rejectionReason(err))
-		return Started{}, err
-	}
-
 	assistant := model.Message{
 		ID:             uuid.New(),
 		ConversationID: conversation.ID,
@@ -116,7 +125,89 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 		Status:         model.MessageStatusStreaming,
 		Model:          modelID,
 	}
-	if err := s.conversations.AppendPair(ctx, userMessage, assistant); err != nil {
+
+	return s.dispatch(ctx, dispatchCommand{
+		UserID:    cmd.UserID,
+		ModelID:   modelID,
+		Prompt:    prompt,
+		Assistant: assistant,
+		UserText:  cmd.Content,
+		Persist: func(ctx context.Context, m model.Message) error {
+			return s.conversations.AppendPair(ctx, userMessage, m)
+		},
+	})
+}
+
+// Regenerate answers an existing turn again. The previous answer is kept as a
+// sibling rather than overwritten, so nothing a user has already read is lost.
+func (s *Service) Regenerate(ctx context.Context, cmd RegenerateCommand) (Started, error) {
+	previous, err := s.conversations.Message(ctx, cmd.MessageID)
+	if err != nil {
+		return Started{}, err
+	}
+	if previous.Role != model.RoleAssistant || previous.ParentID == nil {
+		return Started{}, constants.ErrNotFound
+	}
+
+	conversation, err := s.conversations.Get(ctx, previous.ConversationID, cmd.UserID)
+	if err != nil {
+		return Started{}, err
+	}
+
+	modelID := cmd.Model
+	if modelID == "" {
+		modelID = previous.Model
+	}
+	if modelID == "" {
+		modelID = conversation.DefaultModel
+	}
+
+	thread, err := s.conversations.ThreadTo(ctx, *previous.ParentID, threadLimit)
+	if err != nil {
+		return Started{}, err
+	}
+
+	input, ok := thread.Head()
+	if !ok {
+		return Started{}, constants.ErrNotFound
+	}
+
+	prompt, ok := domain.BuildPrompt(thread.WithoutHead(), s.memory(ctx, cmd.UserID), input).
+		Fit(s.catalogue.ContextWindow(modelID))
+	if !ok {
+		return Started{}, constants.ErrContextTooLarge
+	}
+
+	assistant := model.Message{
+		ID:             uuid.New(),
+		ConversationID: conversation.ID,
+		ParentID:       previous.ParentID,
+		Role:           model.RoleAssistant,
+		Status:         model.MessageStatusStreaming,
+		Model:          modelID,
+	}
+
+	return s.dispatch(ctx, dispatchCommand{
+		UserID:    cmd.UserID,
+		ModelID:   modelID,
+		Prompt:    prompt,
+		Assistant: assistant,
+		UserText:  input.Content,
+		Persist:   s.conversations.AppendBranch,
+	})
+}
+
+// dispatch is everything a first answer and a regenerated one do alike: hold
+// the budget, persist the placeholder, and start the generation.
+func (s *Service) dispatch(ctx context.Context, cmd dispatchCommand) (Started, error) {
+	reservation, err := s.budget.Reserve(ctx, cmd.UserID, cmd.ModelID, cmd.Prompt.TokenEstimate(), defaultMaxTokens)
+	if err != nil {
+		s.metrics.IncQuotaRejection(rejectionReason(err))
+		return Started{}, err
+	}
+
+	assistant := cmd.Assistant
+	if err := cmd.Persist(ctx, assistant); err != nil {
 		_ = s.budget.Release(ctx, reservation)
 		return Started{}, err
 	}
@@ -126,7 +217,7 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 	// only an explicit stop cancels it.
 	genCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), generationTimeout)
 
-	upstream, err := s.completer.Stream(genCtx, toProviderRequest(prompt, modelID))
+	upstream, err := s.completer.Stream(genCtx, toProviderRequest(cmd.Prompt, cmd.ModelID))
 	if err != nil {
 		err = fmt.Errorf("%w: %s", constants.ErrModelUnavailable, err)
 		cancel()
@@ -140,9 +231,9 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 	s.live.add(assistant.ID, stream)
 	subscription := stream.Subscribe()
 
-	go s.consume(genCtx, upstream, stream, assistant, reservation, cmd.UserID, cmd.Content)
+	go s.consume(genCtx, upstream, stream, assistant, reservation, cmd.UserID, cmd.UserText)
 
-	return Started{MessageID: assistant.ID, Truncated: prompt.Truncated(), Deltas: subscription}, nil
+	return Started{MessageID: assistant.ID, Truncated: cmd.Prompt.Truncated(), Deltas: subscription}, nil
 }
 
 // Reattach returns the live output of a generation already in flight, replaying

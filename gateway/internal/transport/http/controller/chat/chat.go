@@ -53,6 +53,34 @@ func (c *Controller) Send(w http.ResponseWriter, r *http.Request) {
 	sse.Pipe(w, r, rc, started.Deltas)
 }
 
+func (c *Controller) Regenerate(w http.ResponseWriter, r *http.Request) {
+	messageID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpio.Error(w, constants.ErrBadRequest)
+		return
+	}
+
+	var req dto.RegenerateRequest
+	if err := httpio.Decode(r, &req); err != nil {
+		httpio.Error(w, err)
+		return
+	}
+
+	started, err := c.service.Regenerate(r.Context(), chatservice.RegenerateCommand{
+		UserID:    mw.UserFrom(r.Context()).ID,
+		MessageID: messageID,
+		Model:     req.Model,
+	})
+	if err != nil {
+		httpio.Error(w, err)
+		return
+	}
+
+	rc := sse.Prepare(w)
+	sse.Meta(w, rc, started.MessageID.String(), started.Truncated)
+	sse.Pipe(w, r, rc, started.Deltas)
+}
+
 func (c *Controller) Reattach(w http.ResponseWriter, r *http.Request) {
 	messageID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 
 func (c *Controller) Routes(r router.Routers) {
 	r.Protected.Post("/chat", c.Send)
+	r.Protected.Post("/chat/{id}/regenerate", c.Regenerate)
 	r.Protected.Get("/chat/{id}/stream", c.Reattach)
 	r.Protected.Post("/chat/{id}/stop", httpio.Wrap(c.Stop))
 }

@@ -23,16 +23,24 @@ const messageColumns = `id, conversation_id, parent_id, role, content, content_n
 // threadQuery walks parent pointers upward from the conversation's head, so
 // the sibling branches left behind by regeneration are excluded by
 // construction rather than by filtering.
-const threadQuery = `
-with recursive path as (
-    select m.* from messages m
-      join conversations c on c.head_message_id = m.id
-     where c.id = $1
+const threadWalk = `
   union all
     select p.* from messages p
       join path on path.parent_id = p.id
 )
 select ` + messageColumns + ` from path limit $2`
+
+const threadQuery = `
+with recursive path as (
+    select m.* from messages m
+      join conversations c on c.head_message_id = m.id
+     where c.id = $1` + threadWalk
+
+// threadToQuery walks from a named message instead of the head, which is what
+// a regeneration needs: the branch being replaced is not on the path.
+const threadToQuery = `
+with recursive path as (
+    select m.* from messages m where m.id = $1` + threadWalk
 
 type ConversationRepository struct {
 	db *pgxpool.Pool
@@ -149,6 +157,32 @@ func (r *ConversationRepository) Thread(ctx context.Context, conversationID uuid
 	return domain.ThreadFrom(messages), nil
 }
 
+func (r *ConversationRepository) ThreadTo(ctx context.Context, messageID uuid.UUID, limit int) (domain.Thread, error) {
+	rows, err := r.db.Query(ctx, threadToQuery, messageID, limit)
+	if err != nil {
+		return domain.Thread{}, err
+	}
+
+	messages, err := pgx.CollectRows(rows, pgx.RowToStructByName[model.Message])
+	if err != nil {
+		return domain.Thread{}, err
+	}
+	return domain.ThreadFrom(messages), nil
+}
+
+func (r *ConversationRepository) Message(ctx context.Context, id uuid.UUID) (model.Message, error) {
+	rows, err := r.db.Query(ctx, `select `+messageColumns+` from messages where id = $1`, id)
+	if err != nil {
+		return model.Message{}, err
+	}
+
+	m, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.Message])
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.Message{}, constants.ErrNotFound
+	}
+	return m, err
+}
+
 func (r *ConversationRepository) Siblings(ctx context.Context, parentID uuid.UUID) ([]model.Message, error) {
 	rows, err := r.db.Query(ctx,
 		`select `+messageColumns+` from messages where parent_id = $1 order by created_at`,
@@ -180,24 +214,53 @@ func (r *ConversationRepository) AppendPair(ctx context.Context, user, assistant
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	for _, m := range []model.Message{user, assistant} {
-		_, err := tx.Exec(ctx,
-			`insert into messages (id, conversation_id, parent_id, role, content, content_norm,
-			                       status, model, tokens_in, tokens_out, cost_usd_micros)
-			 values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-			m.ID, m.ConversationID, m.ParentID, m.Role, m.Content, textnorm.Normalize(m.Content),
-			m.Status, m.Model, m.TokensIn, m.TokensOut, m.CostUSDMicros)
-		if err != nil {
+		if err := insertMessage(ctx, tx, m); err != nil {
 			return err
 		}
 	}
 
-	if _, err := tx.Exec(ctx,
-		`update conversations set head_message_id = $2 where id = $1`,
-		assistant.ConversationID, assistant.ID); err != nil {
+	if err := moveHead(ctx, tx, assistant); err != nil {
 		return err
 	}
 
 	return tx.Commit(ctx)
+}
+
+// AppendBranch adds one assistant message beside an existing sibling and moves
+// the head onto it, which is how a regenerated answer replaces the one before
+// it without destroying it.
+func (r *ConversationRepository) AppendBranch(ctx context.Context, m model.Message) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := insertMessage(ctx, tx, m); err != nil {
+		return err
+	}
+	if err := moveHead(ctx, tx, m); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+func insertMessage(ctx context.Context, tx pgx.Tx, m model.Message) error {
+	_, err := tx.Exec(ctx,
+		`insert into messages (id, conversation_id, parent_id, role, content, content_norm,
+		                       status, model, tokens_in, tokens_out, cost_usd_micros)
+		 values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		m.ID, m.ConversationID, m.ParentID, m.Role, m.Content, textnorm.Normalize(m.Content),
+		m.Status, m.Model, m.TokensIn, m.TokensOut, m.CostUSDMicros)
+	return err
+}
+
+func moveHead(ctx context.Context, tx pgx.Tx, m model.Message) error {
+	_, err := tx.Exec(ctx,
+		`update conversations set head_message_id = $2 where id = $1`,
+		m.ConversationID, m.ID)
+	return err
 }
 
 func (r *ConversationRepository) AppendPartial(ctx context.Context, id uuid.UUID, content string) error {
