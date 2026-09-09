@@ -294,3 +294,16 @@ code {
 .hljs-deletion {
   color: oklch(0.55 0.19 25);
 }
+
+/* Formulas keep their own direction inside Persian text, and a long one
+   scrolls rather than widening the answer. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+}
+.katex,
+.katex-display {
+  direction: ltr;
+  text-align: initial;
+}

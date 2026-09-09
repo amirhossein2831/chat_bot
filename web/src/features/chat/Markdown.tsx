@@ -3,7 +3,11 @@ import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 
+import type { PluggableList } from "unified";
+
 import { CodeBlock } from "./CodeBlock";
+import { Diagram } from "./Diagram";
+import { useMathPlugins } from "./useMathPlugins";
 
 // A half-arrived code fence renders as broken output that flickers when it
 // completes. Counting fences and closing an odd one costs nothing.
@@ -36,20 +40,34 @@ function balanceFences(markdown: string): string {
 // so without this every refetch rebuilds the DOM of every answer in the
 // thread, not just the one that changed.
 export const Markdown = memo(function Markdown({ children }: { children: string }) {
+  const math = useMathPlugins(children);
+
+  const highlight: PluggableList[number] = [rehypeHighlight, { detect: true, ignoreMissing: true }];
+
+  const remarkPlugins: PluggableList = math ? [remarkGfm, ...math.remark] : [remarkGfm];
+  const rehypePlugins: PluggableList = math ? [...math.rehype, highlight] : [highlight];
+
   return (
     <div className="prose-chat flex flex-col gap-4 leading-[1.75]">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[[rehypeHighlight, { detect: true, ignoreMissing: true }]]}
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={rehypePlugins}
         components={{
           // Code is always LTR, whatever direction surrounds it. The source is
           // read off the original node because by this point the rendered
           // children are highlighting spans, not the text someone wants copied.
-          pre: ({ node, children }) => (
-            <CodeBlock language={languageOf(node)} source={textOf(node)}>
-              {children}
-            </CodeBlock>
-          ),
+          pre: ({ node, children }) => {
+            const language = languageOf(node);
+            const source = textOf(node);
+
+            if (language === "mermaid") return <Diagram source={source} />;
+
+            return (
+              <CodeBlock language={language} source={source}>
+                {children}
+              </CodeBlock>
+            );
+          },
           code: ({ children }) => <code dir="ltr">{children}</code>,
           a: ({ href, children }) => (
             <a href={href} target="_blank" rel="noreferrer" className="text-accent underline">
