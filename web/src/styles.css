@@ -34,8 +34,26 @@
   --color-ok: oklch(0.68 0.13 150);
 }
 
+/* Dark follows the OS and browser, with no in-app control: one setting the
+   user already made, honoured everywhere. Every token keeps its hue and
+   chroma so the accent stays recognisably the same turquoise. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: oklch(0.185 0.008 60);
+    --color-surface: oklch(0.225 0.008 60);
+    --color-raised: oklch(0.21 0.008 60);
+    --color-ink: oklch(0.93 0.008 85);
+    --color-muted: oklch(0.68 0.01 60);
+    --color-line: oklch(0.3 0.008 60);
+    --color-accent: oklch(0.72 0.11 195);
+    --color-accent-soft: oklch(0.31 0.045 195);
+    --color-ok: oklch(0.74 0.13 150);
+  }
+}
+
 html {
   font-family: var(--font-sans);
+  color-scheme: light dark;
 }
 
 body {
@@ -59,6 +77,6 @@ code {
   width: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.9 0.006 85);
+  background: var(--color-line);
   border-radius: 99px;
 }
