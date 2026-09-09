@@ -31,6 +31,23 @@ function languageOf(node: unknown): string {
   return tag ? tag.slice("language-".length) : "text";
 }
 
+// Models write formulas with LaTeX's own delimiters far more often than with
+// dollar signs, and markdown reads \[ and \( as escaped brackets, so the
+// formula arrives as literal punctuation and never reaches the renderer.
+// Code is left alone: a backslash-paren inside it is a regular expression.
+function toDollarMath(markdown: string): string {
+  return markdown
+    .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+    .map((part, index) =>
+      index % 2 === 1
+        ? part
+        : part
+            .replace(/\\\[([\s\S]+?)\\\]/g, (_, body: string) => `$$${body}$$`)
+            .replace(/\\\(([\s\S]+?)\\\)/g, (_, body: string) => `$${body}$`),
+    )
+    .join("");
+}
+
 function balanceFences(markdown: string): string {
   const fences = markdown.match(/```/g)?.length ?? 0;
   return fences % 2 === 1 ? `${markdown}\n\`\`\`` : markdown;
@@ -40,7 +57,8 @@ function balanceFences(markdown: string): string {
 // so without this every refetch rebuilds the DOM of every answer in the
 // thread, not just the one that changed.
 export const Markdown = memo(function Markdown({ children }: { children: string }) {
-  const math = useMathPlugins(children);
+  const source = toDollarMath(balanceFences(children));
+  const math = useMathPlugins(source);
 
   const highlight: PluggableList[number] = [rehypeHighlight, { detect: true, ignoreMissing: true }];
 
@@ -77,7 +95,7 @@ export const Markdown = memo(function Markdown({ children }: { children: string 
           p: ({ children }) => <p className="m-0">{children}</p>,
         }}
       >
-        {balanceFences(children)}
+        {source}
       </ReactMarkdown>
     </div>
   );
