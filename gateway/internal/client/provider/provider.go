@@ -17,6 +17,13 @@ const (
 	DeltaError
 )
 
+// Lister is implemented by providers that can report which models they are
+// actually serving right now. A provider that cannot is trusted to serve
+// everything the catalogue claims for it.
+type Lister interface {
+	List(ctx context.Context) ([]string, error)
+}
+
 type Tier string
 
 const (

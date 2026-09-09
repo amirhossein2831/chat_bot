@@ -59,22 +59,37 @@ func (c *Client) Name() string { return c.name }
 func (c *Client) Models() []provider.ModelInfo { return c.models }
 
 func (c *Client) Health(ctx context.Context) error {
+	_, err := c.List(ctx)
+	return err
+}
+
+func (c *Client) List(ctx context.Context) ([]string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+modelsPath, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	c.authorize(req)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf("%s health: status %d", c.name, resp.StatusCode)
+		return nil, fmt.Errorf("%s health: status %d", c.name, resp.StatusCode)
 	}
-	return nil
+
+	var payload modelListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, fmt.Errorf("%s models: %w", c.name, err)
+	}
+
+	ids := make([]string, 0, len(payload.Data))
+	for _, m := range payload.Data {
+		ids = append(ids, m.ID)
+	}
+	return ids, nil
 }
 
 func (c *Client) Stream(ctx context.Context, req provider.ChatRequest) (<-chan provider.Delta, error) {

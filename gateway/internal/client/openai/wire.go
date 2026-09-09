@@ -57,3 +57,9 @@ func toWire(req provider.ChatRequest) chatRequest {
 		StreamOptions: streamOptions{IncludeUsage: true},
 	}
 }
+
+type modelListResponse struct {
+	Data []struct {
+		ID string `json:"id"`
+	} `json:"data"`
+}
