@@ -1,8 +1,6 @@
 package router
 
 import (
-	"net/http"
-
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -22,23 +20,20 @@ type Params struct {
 }
 
 func New(p Params) *chi.Mux {
-	r := chi.NewRouter()
-	r.Use(mw.RequestID, mw.Recover(p.Log))
+	root := chi.NewRouter()
+	root.Use(mw.RequestID, mw.Recover(p.Log))
 
-	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		httptransport.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	})
-
-	r.Route(apiBasePath, func(api chi.Router) {
+	root.Route(apiBasePath, func(api chi.Router) {
 		public := api.Group(nil)
 
 		protected := api.Group(nil)
 		protected.Use(mw.RequireAuth(p.Auth, httptransport.WriteError))
 
+		scopes := Routers{Root: root, Public: public, Protected: protected}
 		for _, registrar := range p.Registrars {
-			registrar.Routes(public, protected)
+			registrar.Routes(scopes)
 		}
 	})
 
-	return r
+	return root
 }

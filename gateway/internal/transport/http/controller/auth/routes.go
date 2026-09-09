@@ -1,11 +1,11 @@
 package auth
 
-import "github.com/go-chi/chi/v5"
+import "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/router"
 
-func (c *Controller) Routes(public, protected chi.Router) {
-	public.Post("/auth/register", c.Register)
-	public.Post("/auth/login", c.Login)
+func (c *Controller) Routes(r router.Routers) {
+	r.Public.Post("/auth/register", c.Register)
+	r.Public.Post("/auth/login", c.Login)
 
-	protected.Post("/auth/logout", c.Logout)
-	protected.Get("/me", c.Me)
+	r.Protected.Post("/auth/logout", c.Logout)
+	r.Protected.Get("/me", c.Me)
 }
