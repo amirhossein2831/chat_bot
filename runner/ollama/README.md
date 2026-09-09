@@ -19,9 +19,19 @@ pulling models normally both work.
 ./pull.sh                                             # in another shell
 ```
 
-`pull.sh` reads the model ids out of `gateway/configs/config.yaml` rather than
-keeping its own list, so adding a local model to the catalogue is the only edit
-needed.
+The models to fetch are the `MODELS` list at the top of `pull.sh`. Add a line
+to pull another one, tag included — the tag picks the quantisation and size:
+
+```bash
+MODELS=(
+  qwen2.5:3b
+  qwen2.5:7b-instruct-q4_K_M
+)
+```
+
+A model has to be in the gateway catalogue too, under `models:` in
+`gateway/configs/config.yaml`, before it can be selected — that is where its
+context window and cost live, which the runner does not know.
 
 ## Environment
 
@@ -29,7 +39,6 @@ needed.
 |---|---|---|
 | `OLLAMA_PREFIX` | `~/.local` | where `bin/ollama` and `lib/ollama` are unpacked |
 | `OLLAMA_HOST` | `127.0.0.1:11434` | address the server binds to |
-| `GATEWAY_CONFIG` | `gateway/configs/config.yaml` | catalogue `pull.sh` reads |
 
 `OLLAMA_HOST` and `providers.local.base_url` in the gateway config are two ends
 of the same connection. Changing one means changing the other.
