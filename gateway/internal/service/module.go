@@ -5,12 +5,15 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/infrastructure/objectstore"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/jobs"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/client/registry"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/catalogue"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/chat"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/conversation"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/service/files"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/memory"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/quota"
 	mw "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/middleware"
@@ -21,6 +24,17 @@ var Module = fx.Module("service",
 		auth.NewService,
 		conversation.NewService,
 		quota.NewService,
+		func(
+			repo files.Repository,
+			store *objectstore.Store,
+			queue *jobs.Queue,
+			cfg *config.Config,
+			log *zap.Logger,
+		) *files.Service {
+			return files.NewService(repo, store, queue, cfg, log)
+		},
+		jobs.NewQueue,
+		fx.Annotate(func(s *files.Service) *files.Service { return s }, fx.As(new(jobs.Extractor))),
 		func(repo memory.Repository, registry *registry.Registry, cfg *config.Config, log *zap.Logger) *memory.Service {
 			return memory.NewService(repo, registry, localModelID(cfg), log)
 		},

@@ -13,6 +13,7 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
 	chatservice "github.com/amirhossein2831/chat_bot/gateway/internal/service/chat"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/conversation"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/service/files"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/memory"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/quota"
 )
@@ -54,6 +55,12 @@ var Module = fx.Module("repository",
 		fx.Annotate(
 			func(db *pgxpool.Pool) *pgrepo.MemoryRepository { return pgrepo.NewMemoryRepository(db) },
 			fx.As(new(memory.Repository)),
+		),
+		fx.Annotate(
+			func(db *pgxpool.Pool) *pgrepo.AttachmentRepository {
+				return pgrepo.NewAttachmentRepository(db)
+			},
+			fx.As(new(files.Repository)),
 		),
 	),
 )

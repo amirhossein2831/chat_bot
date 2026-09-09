@@ -28,6 +28,8 @@ type Config struct {
 	Providers ProvidersConfig `mapstructure:"providers"`
 	Relay     RelayConfig     `mapstructure:"relay"`
 	Models    []ModelConfig   `mapstructure:"models"`
+	Objects   ObjectsConfig   `mapstructure:"objects"`
+	Files     FilesConfig     `mapstructure:"files"`
 }
 
 func (c Config) IsProduction() bool { return c.Env == EnvProduction }
@@ -40,6 +42,24 @@ type HTTPConfig struct {
 type PostgresConfig struct {
 	DSN      string `mapstructure:"dsn"       validate:"required"`
 	MaxConns int32  `mapstructure:"max_conns" validate:"min=1"`
+}
+
+type ObjectsConfig struct {
+	Endpoint  string `mapstructure:"endpoint"   validate:"required"`
+	AccessKey string `mapstructure:"access_key" validate:"required"`
+	SecretKey string `mapstructure:"secret_key" validate:"required"`
+	Bucket    string `mapstructure:"bucket"     validate:"required"`
+	UseTLS    bool   `mapstructure:"use_tls"`
+}
+
+type FilesConfig struct {
+	MaxBytes      int64 `mapstructure:"max_bytes"       validate:"min=1"`
+	PresignTTLMin int   `mapstructure:"presign_ttl_min" validate:"min=1"`
+	DailyLimit    int   `mapstructure:"daily_limit"     validate:"min=1"`
+}
+
+func (f FilesConfig) PresignTTL() time.Duration {
+	return time.Duration(f.PresignTTLMin) * time.Minute
 }
 
 type ProvidersConfig struct {
@@ -166,4 +186,14 @@ func setDefaults(v *viper.Viper, env string) {
 	v.SetDefault("relay.credential", "")
 
 	v.SetDefault("models", []ModelConfig{})
+
+	v.SetDefault("objects.endpoint", "localhost:9000")
+	v.SetDefault("objects.access_key", "minioadmin")
+	v.SetDefault("objects.secret_key", "minioadmin")
+	v.SetDefault("objects.bucket", "attachments")
+	v.SetDefault("objects.use_tls", false)
+
+	v.SetDefault("files.max_bytes", 20*1024*1024)
+	v.SetDefault("files.presign_ttl_min", 15)
+	v.SetDefault("files.daily_limit", 20)
 }
