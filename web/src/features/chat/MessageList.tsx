@@ -8,7 +8,7 @@ import { Markdown } from "./Markdown";
 type Props = {
   messages: Message[];
   streamingText: string;
-  streaming: boolean;
+  streamingId: string | null;
   awaiting: boolean;
   truncated: boolean;
   reconnecting: boolean;
@@ -20,7 +20,7 @@ type Props = {
 export function MessageList({
   messages,
   streamingText,
-  streaming,
+  streamingId,
   awaiting,
   truncated,
   reconnecting,
@@ -52,14 +52,11 @@ export function MessageList({
             <AssistantTurn
               key={index}
               message={message}
-              // The last assistant message is the one being written into, so
-              // while streaming its stored content is stale by design.
-              text={
-                streaming && message.id === messages[messages.length - 1]?.id
-                  ? streamingText
-                  : message.content
-              }
-              streaming={streaming && message.id === messages[messages.length - 1]?.id}
+              // Only the message this stream was told it is writing into shows
+              // the buffer. Assuming it is the last one blanks the previous
+              // answer for as long as a new send takes to be confirmed.
+              text={message.id === streamingId ? streamingText : message.content}
+              streaming={message.id === streamingId}
               siblings={siblingsOf(message)}
               onSelectBranch={onSelectBranch}
             />

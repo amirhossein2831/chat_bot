@@ -17,13 +17,20 @@ type PendingSend = { pending?: string; model?: string };
 
 // Every one of these reaches the user as "something went wrong" unless it is
 // named here, which hides the two failures they can actually act on.
+// Retrying a limit or a permission refusal cannot succeed, so the button is
+// not offered for them.
+function retryable(code: string | null): boolean {
+  return code !== "quota_exceeded" && code !== "forbidden";
+}
+
 const failureMessages: Record<string, string> = {
   model_unavailable: "chat.modelDown",
   quota_exceeded: "chat.quotaExceeded",
   forbidden: "chat.notAllowed",
+  disconnected: "chat.disconnected",
 };
 
-function optimisticTurn(content: string): Message {
+function optimisticTurn(content: string, at: number): Message {
   return {
     id: "pending",
     parentId: null,
@@ -34,14 +41,11 @@ function optimisticTurn(content: string): Message {
     tokensIn: 0,
     tokensOut: 0,
     error: null,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(at).toISOString(),
   };
 }
 
-function hasStreamingTurn(messages: Message[]): boolean {
-  const last = messages[messages.length - 1];
-  return last?.role === "assistant";
-}
+
 
 export function ChatPage() {
   const { t } = useTranslation();
@@ -56,7 +60,7 @@ export function ChatPage() {
   const fallbackModel = useDefaultModel();
   const [model, setModel] = useState("");
 
-  const { data: messages, refetch } = useThread(id);
+  const { data: messages, refetch, dataUpdatedAt } = useThread(id);
   const switchBranch = useSwitchBranch(id);
   const create = useCreateConversation();
   const uploads = useUpload();
@@ -93,6 +97,15 @@ export function ChatPage() {
   const draftKey = id || "new";
   const draft = drafts[draftKey] ?? "";
 
+  const retry = () => {
+    const last = shown[shown.length - 1];
+    if (last?.role === "assistant" && last.status === "failed") {
+      void stream.regenerate(last.id, chosenModel);
+      return;
+    }
+    stream.retry();
+  };
+
   const send = async () => {
     const content = draft.trim();
     if (!content) return;
@@ -118,20 +131,18 @@ export function ChatPage() {
     return (message: Message) => byParent.get(message.parentId) ?? [];
   }, [messages]);
 
-  // The optimistic turn is dropped as soon as the server's own copy of it
-  // arrives, so the same message is never on screen twice.
-  const shown = useMemo(() => {
-    const thread = messages ?? [];
-    if (stream.sent === null) return thread;
+  // Whether the server's own copy of this turn has been fetched yet. Matching
+  // on content instead would hide a message identical to the one before it.
+  const confirmed = stream.sentAt !== null && dataUpdatedAt > stream.sentAt;
 
-    const lastUser = [...thread].reverse().find((message) => message.role === "user");
-    if (lastUser?.content === stream.sent) return thread;
-
-    return [...thread, optimisticTurn(stream.sent)];
-  }, [messages, stream.sent]);
+  const thread = messages ?? [];
+  const shown =
+    stream.sent === null || stream.sentAt === null || confirmed
+      ? thread
+      : [...thread, optimisticTurn(stream.sent, stream.sentAt)];
 
   const empty = !id || (shown.length === 0 && !stream.streaming);
-  const awaiting = stream.streaming && !stream.buffer && !hasStreamingTurn(shown);
+  const awaiting = stream.streaming && !stream.buffer && !confirmed;
 
   return (
     <>
@@ -162,6 +173,19 @@ export function ChatPage() {
               <path d="M12 8v4.5M12 16h.01" />
             </svg>
             {t(failureMessages[stream.failureCode ?? ""] ?? "chat.failed")}
+            {retryable(stream.failureCode) && (
+              <button
+                type="button"
+                onClick={retry}
+                className="flex items-center gap-1 font-medium underline underline-offset-2"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                {t("chat.retry")}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -180,7 +204,7 @@ export function ChatPage() {
         <MessageList
           messages={shown}
           streamingText={stream.buffer}
-          streaming={stream.streaming}
+          streamingId={stream.messageId}
           awaiting={awaiting}
           truncated={stream.truncated}
           reconnecting={stream.reconnecting}

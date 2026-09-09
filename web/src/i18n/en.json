@@ -30,7 +30,9 @@
     "failed": "No reply. The model is unavailable or the request failed.",
     "modelDown": "This model is unavailable right now. Your message was saved; try again later.",
     "quotaExceeded": "You have used today's message allowance. Try again tomorrow.",
-    "notAllowed": "Your current plan does not include this model."
+    "notAllowed": "Your current plan does not include this model.",
+    "retry": "Retry",
+    "disconnected": "The connection to the server was lost."
   },
   "models": {
     "unavailable": "Unavailable",

@@ -4,9 +4,11 @@ import { parseSSE } from "../../lib/sse";
 import { stopGeneration } from "./chatApi";
 
 const MAX_BACKOFF_MS = 8_000;
+const MAX_ATTEMPTS = 3;
 
 type StreamState = {
   sent: string | null;
+  sentAt: number | null;
   buffer: string;
   streaming: boolean;
   messageId: string | null;
@@ -18,6 +20,7 @@ type StreamState = {
 
 const IDLE: StreamState = {
   sent: null,
+  sentAt: null,
   buffer: "",
   streaming: false,
   messageId: null,
@@ -31,6 +34,8 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
   const [state, setState] = useState<StreamState>(IDLE);
 
   const controller = useRef<AbortController | null>(null);
+  const abandoned = useRef(new Set<string>());
+  const last = useRef<(() => void) | null>(null);
   const pending = useRef("");
   const frame = useRef(0);
   const attempt = useRef(0);
@@ -105,6 +110,16 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
             signal: controller.current?.signal,
           });
 
+          // The server holds a generation only while it runs. A 4xx says this
+          // one is not running, which usually means it finished while we were
+          // away: the reply is already stored, so refetch rather than retry.
+          if (response.status >= 400 && response.status < 500) {
+            abandoned.current.add(messageId);
+            setState((current) => ({ ...current, streaming: false, reconnecting: false }));
+            finished.current();
+            return;
+          }
+
           if (!response.ok || !response.body) throw new Error("reattach failed");
 
           pending.current = "";
@@ -116,6 +131,19 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
           if (error instanceof DOMException && error.name === "AbortError") return;
 
           attempt.current += 1;
+          if (attempt.current > MAX_ATTEMPTS) {
+            abandoned.current.add(messageId);
+            setState((current) => ({
+              ...current,
+              streaming: false,
+              reconnecting: false,
+              failed: true,
+              failureCode: "disconnected",
+            }));
+            finished.current();
+            return;
+          }
+
           setState((current) => ({ ...current, reconnecting: true }));
 
           const wait = Math.min(1000 * 2 ** (attempt.current - 1), MAX_BACKOFF_MS);
@@ -128,6 +156,7 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
 
   const send = useCallback(
     async (conversationId: string, content: string, model?: string) => {
+      last.current = () => void send(conversationId, content, model);
       controller.current?.abort();
       controller.current = new AbortController();
       pending.current = "";
@@ -135,7 +164,7 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
       // The turn is shown from here, not from the server's copy of it: waiting
       // for that leaves the message invisible for as long as the model takes
       // to produce its first token.
-      setState({ ...IDLE, sent: content, streaming: true });
+      setState({ ...IDLE, sent: content, sentAt: Date.now(), streaming: true });
 
       try {
         const response = await fetch("/api/v1/chat", {
@@ -163,12 +192,66 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
         await consume(response.body, controller.current.signal);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setState((current) => ({ ...current, streaming: false, failed: true }));
+        setState((current) => ({
+          ...current,
+          streaming: false,
+          failed: true,
+          failureCode: "disconnected",
+        }));
         finished.current();
       }
     },
     [consume],
   );
+
+  const regenerate = useCallback(
+    async (messageId: string, model?: string) => {
+      last.current = () => void regenerate(messageId, model);
+      controller.current?.abort();
+      controller.current = new AbortController();
+      pending.current = "";
+      attempt.current = 0;
+      setState({ ...IDLE, sentAt: Date.now(), streaming: true });
+
+      try {
+        const response = await fetch(`/api/v1/chat/${messageId}/regenerate`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model }),
+          signal: controller.current.signal,
+        });
+
+        if (!response.ok || !response.body) {
+          const payload = await response.json().catch(() => ({ code: "unknown" }));
+          setState((current) => ({
+            ...current,
+            streaming: false,
+            failed: true,
+            failureCode: String(payload.code ?? "unknown"),
+          }));
+          finished.current();
+          return;
+        }
+
+        await consume(response.body, controller.current.signal);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setState((current) => ({
+          ...current,
+          streaming: false,
+          failed: true,
+          failureCode: "disconnected",
+        }));
+        finished.current();
+      }
+    },
+    [consume],
+  );
+
+  const retry = useCallback(() => {
+    last.current?.();
+  }, []);
 
   // Aborting only detaches this client. The generation keeps running, and
   // keeps costing, until the server is told.
@@ -182,8 +265,12 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
     }
   }, [state]);
 
+  // Without this the caller re-resumes the same dead generation on every
+  // refetch, which is an endless "reconnecting" the user cannot escape.
   const resume = useCallback(
     (messageId: string) => {
+      if (abandoned.current.has(messageId)) return;
+
       controller.current?.abort();
       controller.current = new AbortController();
       pending.current = "";
@@ -208,5 +295,5 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
     [],
   );
 
-  return { ...state, send, stop, resume, reset };
+  return { ...state, send, stop, resume, reset, regenerate, retry };
 }
