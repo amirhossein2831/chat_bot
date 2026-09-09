@@ -7,6 +7,7 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/infrastructure/objectstore"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/jobs"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/observability"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/client/registry"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
@@ -45,10 +46,11 @@ var Module = fx.Module("service",
 			catalogueService *catalogue.Service,
 			budget *quota.Service,
 			memoryService *memory.Service,
+			metrics *observability.Metrics,
 			log *zap.Logger,
 		) *chat.Service {
 			return chat.NewService(conversations, registry, catalogueService, budget,
-				memoryService, memoryService, log)
+				memoryService, memoryService, metrics, log)
 		},
 		func(r *registry.Registry) *catalogue.Service { return catalogue.NewService(r) },
 		fx.Annotate(func(s *auth.Service) *auth.Service { return s }, fx.As(new(mw.Authenticator))),

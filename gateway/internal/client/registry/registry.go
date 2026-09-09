@@ -21,11 +21,19 @@ type Registry struct {
 	providers     map[string]provider.Provider
 	log           *zap.Logger
 
+	metrics Availability
+
 	mu        sync.RWMutex
 	available map[string]bool
 }
 
-func New(log *zap.Logger, providers map[string]provider.Provider, models []provider.ModelInfo) *Registry {
+// Availability is satisfied by the metrics collector. It is an interface so
+// the registry does not depend on the observability package.
+type Availability interface {
+	SetProviderAvailable(provider string, up bool)
+}
+
+func New(log *zap.Logger, metrics Availability, providers map[string]provider.Provider, models []provider.ModelInfo) *Registry {
 	byModel := make(map[string]provider.Provider, len(models))
 	providerNames := make(map[string]string, len(models))
 	available := make(map[string]bool, len(providers))
@@ -46,6 +54,7 @@ func New(log *zap.Logger, providers map[string]provider.Provider, models []provi
 		models:        models,
 		providers:     providers,
 		log:           log,
+		metrics:       metrics,
 		available:     available,
 	}
 }
@@ -130,6 +139,9 @@ func (r *Registry) Probe(ctx context.Context) {
 
 	r.mu.Lock()
 	for name, up := range results {
+		if r.metrics != nil {
+			r.metrics.SetProviderAvailable(name, up)
+		}
 		if r.available[name] != up {
 			r.log.Info("provider availability changed",
 				zap.String("provider", name), zap.Bool("available", up))

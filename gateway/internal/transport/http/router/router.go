@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
@@ -19,12 +21,16 @@ type Params struct {
 
 	Log        *zap.Logger
 	Auth       mw.Authenticator
+	Metrics    mw.Observer
+	Gatherer   prometheus.Gatherer
 	Registrars []Registrar `group:"routes"`
 }
 
 func New(p Params) *chi.Mux {
 	root := chi.NewRouter()
-	root.Use(mw.RequestID, mw.Recover(p.Log, httpio.Error))
+	root.Use(mw.RequestID, mw.Recover(p.Log, httpio.Error), mw.Logging(p.Log, p.Metrics))
+
+	root.Handle("/metrics", promhttp.HandlerFor(p.Gatherer, promhttp.HandlerOpts{}))
 
 	root.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		httpio.Error(w, constants.ErrNotFound)

@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,6 +42,7 @@ type Service struct {
 	budget        Budget
 	recaller      Recaller
 	observer      Observer
+	metrics       Metrics
 	live          *liveRegistry
 	log           *zap.Logger
 }
@@ -52,6 +54,7 @@ func NewService(
 	budget Budget,
 	recaller Recaller,
 	observer Observer,
+	metrics Metrics,
 	log *zap.Logger,
 ) *Service {
 	return &Service{
@@ -61,6 +64,7 @@ func NewService(
 		budget:        budget,
 		recaller:      recaller,
 		observer:      observer,
+		metrics:       metrics,
 		live:          newLiveRegistry(),
 		log:           log,
 	}
@@ -99,6 +103,7 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 
 	reservation, err := s.budget.Reserve(ctx, cmd.UserID, modelID, prompt.TokenEstimate(), defaultMaxTokens)
 	if err != nil {
+		s.metrics.IncQuotaRejection(rejectionReason(err))
 		return Started{}, err
 	}
 
@@ -175,6 +180,9 @@ func (s *Service) consume(
 	// record what it produced and settle what it spent.
 	persistCtx := context.WithoutCancel(ctx)
 
+	started := time.Now()
+	firstToken := false
+
 	var content []byte
 	dirty := false
 
@@ -193,6 +201,7 @@ func (s *Service) consume(
 
 		case delta, ok := <-upstream:
 			if !ok {
+				s.metrics.ObserveStream(assistant.Model, "stopped", time.Since(started))
 				s.finish(persistCtx, stream, assistant, reservation, string(content), nil)
 				s.observe(userID, assistant.ID, userText, string(content))
 				return
@@ -201,15 +210,22 @@ func (s *Service) consume(
 
 			switch delta.Type {
 			case provider.DeltaText:
+				if !firstToken {
+					s.metrics.ObserveFirstToken(assistant.Model, time.Since(started))
+					firstToken = true
+				}
 				content = append(content, delta.Text...)
 				dirty = true
 
 			case provider.DeltaDone:
+				s.metrics.ObserveStream(assistant.Model, "complete", time.Since(started))
 				s.finish(persistCtx, stream, assistant, reservation, string(content), delta.Usage)
 				s.observe(userID, assistant.ID, userText, string(content))
 				return
 
 			case provider.DeltaError:
+				s.metrics.IncUpstreamError(assistant.Model)
+				s.metrics.ObserveStream(assistant.Model, "failed", time.Since(started))
 				assistant.Content = string(content)
 				assistant.MarkFailed(delta.Err.Error())
 				if err := s.conversations.Finalize(persistCtx, assistant); err != nil {
@@ -241,6 +257,8 @@ func (s *Service) finish(
 	if err != nil {
 		s.log.Error("settle failed", zap.Error(err))
 	}
+
+	s.metrics.ObserveUsage(assistant.Model, settled.In, settled.Out, settled.CostUSDMicros)
 
 	assistant.Content = content
 	if err := assistant.MarkComplete(settled); err != nil {
@@ -287,4 +305,14 @@ func toProviderRequest(prompt domain.PromptContext, modelID string) provider.Cha
 		Messages:  messages,
 		MaxTokens: defaultMaxTokens,
 	}
+}
+
+func rejectionReason(err error) string {
+	switch {
+	case errors.Is(err, constants.ErrQuotaExceeded):
+		return "quota_exceeded"
+	case errors.Is(err, constants.ErrModelUnavailable):
+		return "model_not_allowed"
+	}
+	return "other"
 }

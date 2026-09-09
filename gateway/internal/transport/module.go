@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/fx"
 
+	"github.com/amirhossein2831/chat_bot/gateway/internal/observability"
 	httptransport "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/auth"
 	chatctrl "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/chat"
@@ -15,11 +16,14 @@ import (
 	memoryctrl "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/memory"
 	modelctrl "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/model"
 	promptctrl "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/prompt"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/middleware"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/router"
 )
 
 var Module = fx.Module("transport",
 	fx.Provide(
+		fx.Annotate(func(m *observability.Metrics) *observability.Metrics { return m },
+			fx.As(new(middleware.Observer))),
 		httptransport.NewServer,
 		router.New,
 		func(mux *chi.Mux) http.Handler { return mux },

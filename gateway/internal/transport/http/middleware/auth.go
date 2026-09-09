@@ -29,6 +29,9 @@ func RequireAuth(auth Authenticator, writeErr func(http.ResponseWriter, error)) 
 				return
 			}
 
+			if s := scopeFrom(r.Context()); s != nil {
+				s.UserID = user.ID.String()
+			}
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey, user)))
 		})
 	}

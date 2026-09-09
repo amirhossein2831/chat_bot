@@ -11,6 +11,7 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/infrastructure"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/jobs"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/observability"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/repository"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport"
@@ -19,6 +20,7 @@ import (
 func options() fx.Option {
 	return fx.Options(
 		config.Module,
+		observability.Module,
 		infrastructure.Module,
 		client.Module,
 		jobs.Module,

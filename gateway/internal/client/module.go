@@ -14,6 +14,7 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/client/registry"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/client/relay"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/observability"
 )
 
 // streamTimeout bounds a whole generation. It is not a read timeout: a model
@@ -24,11 +25,11 @@ var Module = fx.Module("client",
 	fx.Provide(NewRegistry),
 )
 
-func NewRegistry(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger) *registry.Registry {
+func NewRegistry(lc fx.Lifecycle, cfg *config.Config, metrics *observability.Metrics, log *zap.Logger) *registry.Registry {
 	models := toModelInfo(cfg.Models)
 	providers := buildProviders(cfg, models)
 
-	reg := registry.New(log, providers, models)
+	reg := registry.New(log, metrics, providers, models)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	lc.Append(fx.Hook{

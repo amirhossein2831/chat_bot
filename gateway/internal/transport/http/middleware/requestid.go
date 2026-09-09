@@ -16,6 +16,9 @@ func RequestID(next http.Handler) http.Handler {
 			id = uuid.NewString()
 		}
 		w.Header().Set(requestIDHeader, id)
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestIDKey, id)))
+
+		ctx := context.WithValue(r.Context(), requestIDKey, id)
+		ctx = context.WithValue(ctx, scopeKey, &scope{})
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

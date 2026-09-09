@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -39,6 +40,14 @@ type Recaller interface {
 
 // Observer is told about finished exchanges so memory can learn from them. It
 // is best effort and must never affect the conversation that triggered it.
+type Metrics interface {
+	ObserveFirstToken(model string, d time.Duration)
+	ObserveStream(model, outcome string, d time.Duration)
+	ObserveUsage(model string, in, out int, costMicros int64)
+	IncUpstreamError(model string)
+	IncQuotaRejection(reason string)
+}
+
 type Observer interface {
 	Observe(userID, messageID uuid.UUID, userText, assistantText string)
 }
