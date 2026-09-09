@@ -10,6 +10,7 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/client"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/infrastructure"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/jobs"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/repository"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport"
@@ -20,6 +21,7 @@ func options() fx.Option {
 		config.Module,
 		infrastructure.Module,
 		client.Module,
+		jobs.Module,
 		repository.Module,
 		service.Module,
 		transport.Module,
@@ -27,9 +29,11 @@ func options() fx.Option {
 		// fx constructs lazily; without this nothing is built and a broken
 		// config or unreachable dependency never surfaces.
 		fx.Invoke(func(*http.Server) {}),
+		fx.Invoke(func(jobs.WorkerClient) {}),
 
 		fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
-			return &fxevent.ZapLogger{Logger: log}
+			// fx logs every constructor at info, which buries real errors.
+			return &fxevent.ZapLogger{Logger: log.WithOptions(zap.IncreaseLevel(zap.WarnLevel))}
 		}),
 	)
 }

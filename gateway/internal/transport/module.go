@@ -14,6 +14,7 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/health"
 	memoryctrl "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/memory"
 	modelctrl "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/model"
+	promptctrl "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/prompt"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/router"
 )
 
@@ -44,6 +45,10 @@ var Module = fx.Module("transport",
 			fx.ResultTags(`group:"routes"`),
 		),
 		fx.Annotate(filesctrl.NewController,
+			fx.As(new(router.Registrar)),
+			fx.ResultTags(`group:"routes"`),
+		),
+		fx.Annotate(promptctrl.NewController,
 			fx.As(new(router.Registrar)),
 			fx.ResultTags(`group:"routes"`),
 		),

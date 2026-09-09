@@ -4,15 +4,13 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/riverqueue/river"
 )
 
 type Queue struct {
-	client *river.Client[pgx.Tx]
+	client InsertClient
 }
 
-func NewQueue(client *river.Client[pgx.Tx]) *Queue {
+func NewQueue(client InsertClient) *Queue {
 	return &Queue{client: client}
 }
 

@@ -39,6 +39,7 @@ var mappings = []mapping{
 	{constants.ErrInvalidTransition, http.StatusConflict, "invalid_state"},
 	{constants.ErrQuotaExceeded, http.StatusTooManyRequests, "quota_exceeded"},
 	{constants.ErrModelUnavailable, http.StatusServiceUnavailable, "model_unavailable"},
+	{constants.ErrStorageUnavailable, http.StatusServiceUnavailable, "storage_unavailable"},
 	{constants.ErrContextTooLarge, http.StatusRequestEntityTooLarge, "context_too_large"},
 }
 
@@ -54,6 +55,12 @@ func mapError(err error) (int, errorPayload) {
 
 	for _, m := range mappings {
 		if errors.Is(err, m.err) {
+			// A 5xx means something inside failed, and its message names
+			// internal hosts, ports and upstreams. Only 4xx messages are for
+			// the client to read.
+			if m.status >= http.StatusInternalServerError {
+				return m.status, errorPayload{Error: m.code, Code: m.code}
+			}
 			return m.status, errorPayload{Error: err.Error(), Code: m.code}
 		}
 	}

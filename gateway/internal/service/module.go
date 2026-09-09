@@ -15,6 +15,7 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/conversation"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/files"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/memory"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/service/prompts"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/quota"
 	mw "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/middleware"
 )
@@ -33,7 +34,7 @@ var Module = fx.Module("service",
 		) *files.Service {
 			return files.NewService(repo, store, queue, cfg, log)
 		},
-		jobs.NewQueue,
+		prompts.NewService,
 		fx.Annotate(func(s *files.Service) *files.Service { return s }, fx.As(new(jobs.Extractor))),
 		func(repo memory.Repository, registry *registry.Registry, cfg *config.Config, log *zap.Logger) *memory.Service {
 			return memory.NewService(repo, registry, localModelID(cfg), log)
