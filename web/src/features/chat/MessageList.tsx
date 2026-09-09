@@ -11,6 +11,7 @@ type Props = {
   streaming: boolean;
   truncated: boolean;
   reconnecting: boolean;
+  failed: boolean;
   siblingsOf: (message: Message) => string[];
   onSelectBranch: (messageId: string) => void;
 };
@@ -21,6 +22,7 @@ export function MessageList({
   streaming,
   truncated,
   reconnecting,
+  failed,
   siblingsOf,
   onSelectBranch,
 }: Props) {
@@ -36,6 +38,7 @@ export function MessageList({
       <div className="flex w-full max-w-[720px] flex-col gap-6 pb-4">
         {truncated && <Notice>{t("chat.truncated")}</Notice>}
         {reconnecting && <Notice>{t("chat.reconnecting")}</Notice>}
+        {failed && <Notice tone="error">{t("chat.failed")}</Notice>}
 
         {messages.map((message) =>
           message.role === "user" ? (
@@ -64,9 +67,16 @@ export function MessageList({
   );
 }
 
-function Notice({ children }: { children: React.ReactNode }) {
+function Notice({ children, tone }: { children: React.ReactNode; tone?: "error" }) {
   return (
-    <div className="flex items-center gap-2.5 self-center rounded-full bg-line/60 px-3.5 py-1.5 text-xs text-muted">
+    <div
+      className={[
+        "flex items-center gap-2.5 self-center rounded-full px-3.5 py-1.5 text-xs",
+        tone === "error"
+          ? "bg-red-500/10 text-red-600 dark:text-red-400"
+          : "bg-line/60 text-muted",
+      ].join(" ")}
+    >
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
         <circle cx="12" cy="12" r="9" />
         <path d="M12 8v4.5M12 16h.01" />

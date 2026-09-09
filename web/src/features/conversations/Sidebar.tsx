@@ -5,7 +5,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useUiStore } from "../../app/store";
 import { formatRelative } from "../../lib/format";
 import { useMe } from "../auth/useAuth";
-import { useConversations, useCreateConversation } from "./useConversations";
+import { useConversations } from "./useConversations";
 import { useDebounced } from "./useDebounced";
 
 export function Sidebar() {
@@ -20,12 +20,10 @@ export function Sidebar() {
 
   const { data: conversations } = useConversations(debounced);
   const { data: me } = useMe();
-  const create = useCreateConversation();
 
-  const startConversation = async () => {
-    const conversation = await create.mutateAsync({ title: "", model: "qwen3-14b" });
+  const startConversation = () => {
     setSidebarOpen(false);
-    navigate(`/c/${conversation.id}`);
+    navigate("/");
   };
 
   return (

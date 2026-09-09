@@ -23,7 +23,7 @@ const IDLE: StreamState = {
   failed: false,
 };
 
-export function useChatStream(onFinished: () => void) {
+export function useChatStream(onFinished: () => void, onStarted?: () => void) {
   const [state, setState] = useState<StreamState>(IDLE);
 
   const controller = useRef<AbortController | null>(null);
@@ -32,6 +32,8 @@ export function useChatStream(onFinished: () => void) {
   const attempt = useRef(0);
   const finished = useRef(onFinished);
   finished.current = onFinished;
+  const started = useRef(onStarted);
+  started.current = onStarted;
 
   // Setting state per token re-renders the thread dozens of times a second and
   // visibly stutters a mid-range phone. Accumulate, paint once a frame.
@@ -58,6 +60,10 @@ export function useChatStream(onFinished: () => void) {
               reconnecting: false,
             }));
             attempt.current = 0;
+            // Both turns exist server-side by the time meta arrives, so the
+            // thread is refetched now rather than at the end: otherwise a new
+            // conversation shows its empty state for the whole generation.
+            started.current?.();
             return;
           }
 

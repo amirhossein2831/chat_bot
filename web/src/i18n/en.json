@@ -26,7 +26,8 @@
     "regenerate": "Regenerate",
     "copy": "Copy",
     "branch": "{{current}} of {{total}}",
-    "reconnecting": "Connection lost, reconnecting…"
+    "reconnecting": "Connection lost, reconnecting…",
+    "failed": "No reply. The model is unavailable or the request failed."
   },
   "models": {
     "unavailable": "Unavailable",

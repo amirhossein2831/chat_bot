@@ -37,21 +37,23 @@ export function ChatPage() {
     void refetch();
   }, [refetch]);
 
-  const stream = useChatStream(onFinished);
+  const stream = useChatStream(onFinished, onFinished);
 
   const chosenModel =
     model || models?.find((candidate) => candidate.available)?.id || "qwen3-14b";
 
-  // A conversation created from the empty screen carries its first message
-  // through the navigation, so the user does not have to send twice.
+  // Reset and pending-send must happen in one effect and in this order.
+  // Split across two, the reset aborted the send that had just started.
   useEffect(() => {
-    const state = location.state as PendingSend | null;
-    if (!id || !state?.pending) return;
+    stream.reset();
 
-    navigate(location.pathname, { replace: true, state: null });
-    void stream.send(id, state.pending, state.model);
+    const state = location.state as PendingSend | null;
+    if (id && state?.pending) {
+      navigate(location.pathname, { replace: true, state: null });
+      void stream.send(id, state.pending, state.model);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, location.state]);
+  }, [id]);
 
   useEffect(() => {
     const last = messages?.[messages.length - 1];
@@ -60,11 +62,6 @@ export function ChatPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
-
-  useEffect(() => {
-    stream.reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
 
   const draftKey = id || "new";
   const draft = drafts[draftKey] ?? "";
@@ -94,7 +91,7 @@ export function ChatPage() {
     return (message: Message) => byParent.get(message.parentId) ?? [];
   }, [messages]);
 
-  const empty = !id || (messages ?? []).length === 0;
+  const empty = !id || ((messages ?? []).length === 0 && !stream.streaming);
 
   return (
     <>
@@ -134,6 +131,7 @@ export function ChatPage() {
           streaming={stream.streaming}
           truncated={stream.truncated}
           reconnecting={stream.reconnecting}
+          failed={stream.failed}
           siblingsOf={siblingsOf}
           onSelectBranch={(messageId) => switchBranch.mutate(messageId)}
         />
