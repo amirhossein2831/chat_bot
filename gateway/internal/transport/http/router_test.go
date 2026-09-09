@@ -1,6 +1,7 @@
 package http_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/constants"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/model"
 	httptransport "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http"
 	mw "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/middleware"
 )
@@ -29,7 +31,7 @@ func newTestServer(t *testing.T, logTo io.Writer) *httptest.Server {
 		zapcore.DebugLevel,
 	))
 
-	r := httptransport.NewRouter(log)
+	r := httptransport.NewRouter(httptransport.RouterParams{Log: log, Auth: noAuth{}})
 	r.Route("/probe", func(r chi.Router) {
 		r.Get("/fail/{kind}", func(w http.ResponseWriter, req *http.Request) {
 			httptransport.WriteError(w, wrapped(chi.URLParam(req, "kind")))
@@ -46,6 +48,12 @@ func newTestServer(t *testing.T, logTo io.Writer) *httptest.Server {
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+type noAuth struct{}
+
+func (noAuth) Authenticate(context.Context, string) (model.User, error) {
+	return model.User{}, constants.ErrUnauthorized
 }
 
 func wrapped(kind string) error {

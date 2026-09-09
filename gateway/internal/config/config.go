@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
@@ -23,6 +24,7 @@ type Config struct {
 	HTTP     HTTPConfig     `mapstructure:"http"`
 	Postgres PostgresConfig `mapstructure:"postgres"`
 	Redis    RedisConfig    `mapstructure:"redis"`
+	Auth     AuthConfig     `mapstructure:"auth"`
 }
 
 func (c Config) IsProduction() bool { return c.Env == EnvProduction }
@@ -35,6 +37,14 @@ type HTTPConfig struct {
 type PostgresConfig struct {
 	DSN      string `mapstructure:"dsn"       validate:"required"`
 	MaxConns int32  `mapstructure:"max_conns" validate:"min=1"`
+}
+
+type AuthConfig struct {
+	SessionTTLHours int `mapstructure:"session_ttl_hours" validate:"min=1"`
+}
+
+func (a AuthConfig) SessionTTL() time.Duration {
+	return time.Duration(a.SessionTTLHours) * time.Hour
 }
 
 type RedisConfig struct {
@@ -114,4 +124,6 @@ func setDefaults(v *viper.Viper, env string) {
 
 	v.SetDefault("redis.addr", "")
 	v.SetDefault("redis.db", 0)
+
+	v.SetDefault("auth.session_ttl_hours", 720)
 }
