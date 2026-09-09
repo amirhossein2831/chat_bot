@@ -10,7 +10,6 @@ type Props = {
   streamingText: string;
   streaming: boolean;
   streamingId: string | null;
-  awaiting: boolean;
   truncated: boolean;
   reconnecting: boolean;
   failed: boolean;
@@ -23,7 +22,6 @@ export function MessageList({
   streamingText,
   streaming,
   streamingId,
-  awaiting,
   truncated,
   reconnecting,
   failed,
@@ -35,7 +33,7 @@ export function MessageList({
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [messages.length, streamingText, awaiting]);
+  }, [messages.length, streamingText]);
 
   return (
     <div className="flex flex-1 justify-center overflow-y-auto px-4 pt-6 md:px-7">
@@ -67,8 +65,6 @@ export function MessageList({
             />
           ),
         )}
-
-        {awaiting && <Thinking />}
 
         <div ref={bottom} />
       </div>
@@ -130,24 +126,16 @@ type AssistantProps = {
 };
 
 function AssistantTurn({ message, text, streaming, siblings, onSelectBranch }: AssistantProps) {
-  const { t } = useTranslation();
-
   // The reply carries its own direction: a Persian answer reads from the
   // right, an English one from the left, whatever the interface language is.
   return (
-    <div dir="auto" className="turn-in flex flex-col gap-3">
+    <div
+      dir="auto"
+      className={["turn-in flex flex-col gap-3", streaming && text ? "caret" : ""].join(" ")}
+    >
       {streaming && !text ? <Thinking /> : <Markdown>{text}</Markdown>}
 
-      <div className="flex items-center gap-3.5">
-        <BranchSwitcher siblings={siblings} current={message.id} onSelect={onSelectBranch} />
-
-        {streaming && (
-          <span className="flex items-center gap-1.5 text-xs text-muted">
-            <span className="size-1.5 animate-pulse rounded-full bg-accent" />
-            {t("chat.writing")}
-          </span>
-        )}
-      </div>
+      <BranchSwitcher siblings={siblings} current={message.id} onSelect={onSelectBranch} />
     </div>
   );
 }

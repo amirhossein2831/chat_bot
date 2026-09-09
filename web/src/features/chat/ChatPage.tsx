@@ -15,10 +15,30 @@ import { useSwitchBranch, useThread } from "./useThread";
 
 type PendingSend = { pending?: string; model?: string };
 
+// The waiting reply is a turn in the list rather than a separate indicator, so
+// the dots and the answer that replaces them are the same element and nothing
+// jumps into place when the first token lands.
+const pendingAssistantId = "pending-assistant";
+
 // Every one of these reaches the user as "something went wrong" unless it is
 // named here, which hides the two failures they can actually act on.
 // Retrying a limit or a permission refusal cannot succeed, so the button is
 // not offered for them.
+function pendingAssistant(at: number): Message {
+  return {
+    id: pendingAssistantId,
+    parentId: "pending",
+    role: "assistant",
+    content: "",
+    status: "streaming",
+    model: "",
+    tokensIn: 0,
+    tokensOut: 0,
+    error: null,
+    createdAt: new Date(at).toISOString(),
+  };
+}
+
 function retryable(code: string | null): boolean {
   return code !== "quota_exceeded" && code !== "forbidden";
 }
@@ -33,7 +53,7 @@ const failureMessages: Record<string, string> = {
 function optimisticTurn(content: string, at: number): Message {
   return {
     id: "pending",
-    parentId: null,
+    parentId: "pending",
     role: "user",
     content,
     status: "complete",
@@ -144,10 +164,9 @@ export function ChatPage() {
   const shown =
     stream.sent === null || stream.sentAt === null || confirmed
       ? thread
-      : [...thread, optimisticTurn(stream.sent, stream.sentAt)];
+      : [...thread, optimisticTurn(stream.sent, stream.sentAt), pendingAssistant(stream.sentAt)];
 
   const empty = !id || (shown.length === 0 && !stream.streaming);
-  const awaiting = stream.streaming && !stream.buffer && !confirmed;
 
   return (
     <>
@@ -210,8 +229,7 @@ export function ChatPage() {
           messages={shown}
           streamingText={stream.buffer}
           streaming={stream.streaming}
-          streamingId={stream.messageId}
-          awaiting={awaiting}
+          streamingId={stream.messageId ?? pendingAssistantId}
           truncated={stream.truncated}
           reconnecting={stream.reconnecting}
           failed={false}
