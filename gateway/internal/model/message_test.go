@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/amirhossein2831/chat_bot/gateway/internal/apperr"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/constants"
 )
 
 func TestMarkCompleteFromStreaming(t *testing.T) {
@@ -23,7 +23,7 @@ func TestMarkCompleteFromStreaming(t *testing.T) {
 func TestMarkCompleteRejectsTerminalMessage(t *testing.T) {
 	for _, status := range []Status{StatusComplete, StatusFailed} {
 		m := Message{Status: status}
-		require.ErrorIs(t, m.MarkComplete(Usage{}), apperr.InvalidTransition,
+		require.ErrorIs(t, m.MarkComplete(Usage{}), constants.ErrInvalidTransition,
 			"completing a %s message must not be allowed", status)
 	}
 }

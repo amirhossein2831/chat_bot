@@ -59,9 +59,9 @@ Mapping exists in exactly two places and nowhere else:
   only; DSNs and credentials arrive through `APP_*`. Production deliberately
   omits `postgres.dsn` so a misconfigured process fails validation instead of
   falling back to a development database.
-- Errors are sentinels in `internal/apperr`, wrapped with `%w`. HTTP status
+- Errors are sentinels in `internal/constants`, wrapped with `%w`. HTTP status
   mapping lives only in `internal/transport/http/error.go`.
-- `internal/apperr` holds shared constants and sentinel errors. It imports
+- `internal/constants` holds shared constants and sentinel errors. It imports
   nothing; `model` imports it, never the reverse.
 - Unmapped errors return a generic message. Never leak DSNs, table names or
   upstream provider detail to a client.
