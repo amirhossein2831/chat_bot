@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/amirhossein2831/chat_bot/gateway/internal/cons"
 )
 
 type Role string
@@ -52,7 +54,7 @@ func (m Message) IsTerminal() bool {
 // Quota is settled from this transition, so a second one would double-debit.
 func (m *Message) MarkComplete(u Usage) error {
 	if m.Status != StatusStreaming {
-		return fmt.Errorf("%w: cannot complete a %s message", ErrInvalidTransition, m.Status)
+		return fmt.Errorf("%w: cannot complete a %s message", cons.ErrInvalidTransition, m.Status)
 	}
 	m.Status = StatusComplete
 	m.TokensIn = u.In

@@ -16,7 +16,7 @@ Rationale lives in spec sections 5 and 6. These are the enforceable rules.
 | Mapper | DTO <-> model/domain, pure functions | I/O |
 | Service | orchestration, transactions, port calls | SQL, `net/http`, wire types |
 | Repository | SQL, scanning into model | business rules, defaulting |
-| Model | entity + logic about that entity | driver types, JSON tags |
+| Model | entity + logic about that entity | driver types, JSON tags, sentinel errors |
 | Domain | non-persisted types, cross-entity logic | persistence concerns |
 
 - `model` has a table. `domain` does not.
@@ -59,8 +59,10 @@ Mapping exists in exactly two places and nowhere else:
   only; DSNs and credentials arrive through `APP_*`. Production deliberately
   omits `postgres.dsn` so a misconfigured process fails validation instead of
   falling back to a development database.
-- Errors are sentinels in `internal/model`, wrapped with `%w`. HTTP status
+- Errors are sentinels in `internal/cons`, wrapped with `%w`. HTTP status
   mapping lives only in `internal/transport/http/error.go`.
+- `internal/cons` holds shared constants and sentinel errors. It imports
+  nothing; `model` imports it, never the reverse.
 - Unmapped errors return a generic message. Never leak DSNs, table names or
   upstream provider detail to a client.
 - Ownership is enforced in the SQL `WHERE` clause, not in the service. A missed
