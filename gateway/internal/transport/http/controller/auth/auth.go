@@ -28,53 +28,47 @@ func NewController(service *authservice.Service, cfg *config.Config) *Controller
 	}
 }
 
-func (c *Controller) Register(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) Register(r *http.Request) (*httpio.Response, error) {
 	var req dto.RegisterRequest
-	if err := httpio.Decode(w, r, &req); err != nil {
-		httpio.Error(w, err)
-		return
+	if err := httpio.Decode(r, &req); err != nil {
+		return nil, err
 	}
 
 	user, err := c.service.Register(r.Context(), mapper.ToUserModel(req), req.Password, req.Invite)
 	if err != nil {
-		httpio.Error(w, err)
-		return
+		return nil, err
 	}
 
-	httpio.JSON(w, http.StatusCreated, mapper.ToUserResponse(user))
+	return httpio.JSON(http.StatusCreated, mapper.ToUserResponse(user)), nil
 }
 
-func (c *Controller) Login(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) Login(r *http.Request) (*httpio.Response, error) {
 	var req dto.LoginRequest
-	if err := httpio.Decode(w, r, &req); err != nil {
-		httpio.Error(w, err)
-		return
+	if err := httpio.Decode(r, &req); err != nil {
+		return nil, err
 	}
 
 	token, user, err := c.service.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		httpio.Error(w, err)
-		return
+		return nil, err
 	}
 
-	http.SetCookie(w, c.cookie(token, c.ttl))
-	httpio.JSON(w, http.StatusOK, mapper.ToUserResponse(user))
+	return httpio.JSON(http.StatusOK, mapper.ToUserResponse(user)).
+		WithCookie(c.cookie(token, c.ttl)), nil
 }
 
-func (c *Controller) Logout(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) Logout(r *http.Request) (*httpio.Response, error) {
 	if cookie, err := r.Cookie(sessionCookie); err == nil {
 		if err := c.service.Logout(r.Context(), cookie.Value); err != nil {
-			httpio.Error(w, err)
-			return
+			return nil, err
 		}
 	}
 
-	http.SetCookie(w, c.cookie("", -time.Second))
-	httpio.NoContent(w)
+	return httpio.NoContent().WithCookie(c.cookie("", -time.Second)), nil
 }
 
-func (c *Controller) Me(w http.ResponseWriter, r *http.Request) {
-	httpio.JSON(w, http.StatusOK, mapper.ToUserResponse(mw.UserFrom(r.Context())))
+func (c *Controller) Me(r *http.Request) (*httpio.Response, error) {
+	return httpio.JSON(http.StatusOK, mapper.ToUserResponse(mw.UserFrom(r.Context()))), nil
 }
 
 func (c *Controller) cookie(value string, ttl time.Duration) *http.Cookie {

@@ -3,6 +3,7 @@ package httpio
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -15,10 +16,27 @@ const maxBodyBytes = 1 << 20
 
 var validate = validator.New()
 
-func Decode(w http.ResponseWriter, r *http.Request, target any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+// Handler reads a request and returns what to send. It never receives a
+// ResponseWriter, so it cannot half-write a response or forget to write one.
+type Handler func(*http.Request) (*Response, error)
 
-	dec := json.NewDecoder(r.Body)
+func Wrap(h Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		res, err := h(r)
+		if err != nil {
+			Error(w, err)
+			return
+		}
+		if res == nil {
+			Error(w, fmt.Errorf("handler returned no response"))
+			return
+		}
+		res.write(w)
+	}
+}
+
+func Decode(r *http.Request, target any) error {
+	dec := json.NewDecoder(io.LimitReader(r.Body, maxBodyBytes))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(target); err != nil {
 		return fmt.Errorf("%w: %s", constants.ErrBadRequest, err)
@@ -30,17 +48,7 @@ func Decode(w http.ResponseWriter, r *http.Request, target any) error {
 	return nil
 }
 
-func JSON(w http.ResponseWriter, status int, body any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
-}
-
-func NoContent(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusNoContent)
-}
-
 func Error(w http.ResponseWriter, err error) {
 	status, payload := httperr.Map(err)
-	JSON(w, status, payload)
+	JSON(status, payload).write(w)
 }

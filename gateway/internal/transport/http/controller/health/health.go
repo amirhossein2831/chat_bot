@@ -10,6 +10,6 @@ type Controller struct{}
 
 func NewController() *Controller { return &Controller{} }
 
-func (c *Controller) Live(w http.ResponseWriter, _ *http.Request) {
-	httpio.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+func (c *Controller) Live(*http.Request) (*httpio.Response, error) {
+	return httpio.JSON(http.StatusOK, map[string]string{"status": "ok"}), nil
 }
