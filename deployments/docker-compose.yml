@@ -45,6 +45,13 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
 
+  web:
+    build:
+      context: ../web
+      dockerfile: build/package/web.Dockerfile
+    ports: ["3000:80"]
+    depends_on: [gateway]
+
 volumes:
   pgdata:
   miniodata:

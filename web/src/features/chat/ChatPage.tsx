@@ -7,6 +7,7 @@ import type { Message } from "./chatApi";
 import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
 import { useChatStream } from "./useChatStream";
+import { useUpload } from "../files/useUpload";
 import { useSwitchBranch, useThread } from "./useThread";
 
 export function ChatPage() {
@@ -25,6 +26,7 @@ export function ChatPage() {
   }, [refetch]);
 
   const stream = useChatStream(onFinished);
+  const uploads = useUpload();
 
   // A generation that was still running when the page was closed is picked up
   // where it left off, replayed from the beginning rather than the remainder.
@@ -49,6 +51,7 @@ export function ChatPage() {
     if (!content) return;
 
     setDraft(id, "");
+    uploads.clear();
     void stream.send(id, content);
   };
 
@@ -96,6 +99,10 @@ export function ChatPage() {
         onSend={send}
         onStop={() => void stream.stop()}
         streaming={stream.streaming}
+        attachments={uploads.items}
+        onAttach={(file) => void uploads.upload(file)}
+        onRemoveAttachment={uploads.remove}
+        storageDown={uploads.storageDown}
       />
     </>
   );
