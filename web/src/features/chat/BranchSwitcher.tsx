@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import { useUiStore } from "../../app/store";
 import { formatNumber } from "../../lib/format";
+import { IconButton } from "./IconButton";
 
 type Props = {
   siblings: string[];
@@ -9,8 +10,8 @@ type Props = {
   onSelect: (messageId: string) => void;
 };
 
-// Regenerating creates a sibling rather than replacing the previous answer, so
-// this is how the other branches stay reachable.
+// Regenerating and editing create siblings rather than replacing what was
+// there, so this is how the other branches stay reachable.
 export function BranchSwitcher({ siblings, current, onSelect }: Props) {
   const { t } = useTranslation();
   const locale = useUiStore((state) => state.locale);
@@ -25,35 +26,18 @@ export function BranchSwitcher({ siblings, current, onSelect }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-line bg-surface p-1">
-      <button
-        type="button"
-        onClick={() => go(-1)}
-        aria-label="previous"
-        className="flex size-8 items-center justify-center rounded-md text-muted hover:bg-line/50"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m9 6-6 6 6 6" />
-        </svg>
-      </button>
+    <div className="flex items-center text-muted">
+      <IconButton mirror label={t("chat.previousBranch")} onClick={() => go(-1)}>
+        <path d="m14 6-6 6 6 6" />
+      </IconButton>
 
-      <span className="px-1 text-xs text-muted">
-        {t("chat.branch", {
-          current: formatNumber(index + 1, locale),
-          total: formatNumber(siblings.length, locale),
-        })}
+      <span className="px-0.5 text-[11.5px] tabular-nums">
+        {formatNumber(index + 1, locale)}/{formatNumber(siblings.length, locale)}
       </span>
 
-      <button
-        type="button"
-        onClick={() => go(1)}
-        aria-label="next"
-        className="flex size-8 items-center justify-center rounded-md text-muted hover:bg-line/50"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m15 6 6 6-6 6" />
-        </svg>
-      </button>
+      <IconButton mirror label={t("chat.nextBranch")} onClick={() => go(1)}>
+        <path d="m10 6 6 6-6 6" />
+      </IconButton>
     </div>
   );
 }

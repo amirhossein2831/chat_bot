@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { IconButton } from "./IconButton";
+
 type Props = {
   text: string;
   onRegenerate?: () => void;
@@ -25,7 +27,7 @@ export function MessageActions({ text, onRegenerate, onEdit }: Props) {
 
   return (
     <div className="flex items-center gap-0.5 text-muted transition-opacity lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
-      <Action label={t(copied ? "chat.copied" : "chat.copy")} onClick={() => void copy()}>
+      <IconButton label={t(copied ? "chat.copied" : "chat.copy")} onClick={() => void copy()}>
         {copied ? (
           <path d="m4 12.5 5 5L20 6.5" />
         ) : (
@@ -34,53 +36,20 @@ export function MessageActions({ text, onRegenerate, onEdit }: Props) {
             <path d="M5 15V5.5A1.5 1.5 0 0 1 6.5 4H15" />
           </>
         )}
-      </Action>
+      </IconButton>
 
       {onRegenerate && (
-        <Action label={t("chat.regenerate")} onClick={onRegenerate}>
+        <IconButton label={t("chat.regenerate")} onClick={onRegenerate}>
           <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
           <path d="M3 3v5h5" />
-        </Action>
+        </IconButton>
       )}
 
       {onEdit && (
-        <Action label={t("chat.edit")} onClick={onEdit}>
+        <IconButton label={t("chat.edit")} onClick={onEdit}>
           <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" />
-        </Action>
+        </IconButton>
       )}
     </div>
-  );
-}
-
-function Action({
-  label,
-  onClick,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className="flex size-7 items-center justify-center rounded-lg transition hover:bg-raised hover:text-ink"
-    >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        {children}
-      </svg>
-    </button>
   );
 }

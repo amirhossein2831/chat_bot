@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useUiStore } from "../../app/store";
 import type { Message } from "./chatApi";
 import { BranchSwitcher } from "./BranchSwitcher";
 import { Markdown } from "./Markdown";
@@ -133,6 +134,19 @@ export function MessageList({
   );
 }
 
+// The row of controls follows the interface, not the message. Inside a turn
+// pinned to one side, or one carrying a language of its own, it would
+// otherwise order itself one way while its arrows point the other.
+function Actions({ children }: { children: React.ReactNode }) {
+  const locale = useUiStore((state) => state.locale);
+
+  return (
+    <div dir={locale === "fa" ? "rtl" : "ltr"} className="flex items-center gap-1.5">
+      {children}
+    </div>
+  );
+}
+
 function Thinking() {
   return (
     <div dir="auto" className="flex items-center gap-1.5 py-1">
@@ -199,7 +213,7 @@ function UserTurn({ message, siblings, onSelectBranch, onEdit }: UserProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <Actions>
         <BranchSwitcher siblings={siblings} current={message.id} onSelect={onSelectBranch} />
         {/* The optimistic copy has no server id yet, so there is nothing to
             branch from until it is confirmed. */}
@@ -207,7 +221,7 @@ function UserTurn({ message, siblings, onSelectBranch, onEdit }: UserProps) {
           text={message.content}
           onEdit={message.id === "pending" ? undefined : () => setEditing(true)}
         />
-      </div>
+      </Actions>
     </div>
   );
 }
@@ -238,7 +252,7 @@ function AssistantTurn({
     >
       {streaming && !text ? <Thinking /> : <Markdown>{text}</Markdown>}
 
-      <div className="flex items-center gap-2">
+      <Actions>
         <BranchSwitcher siblings={siblings} current={message.id} onSelect={onSelectBranch} />
 
         {/* An answer still being written has nothing settled to copy, and
@@ -246,7 +260,7 @@ function AssistantTurn({
         {!streaming && text && (
           <MessageActions text={text} onRegenerate={() => onRegenerate(message.id)} />
         )}
-      </div>
+      </Actions>
     </div>
   );
 }

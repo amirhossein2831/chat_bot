@@ -36,7 +36,9 @@
     "copied": "Copied",
     "edit": "Edit",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "previousBranch": "Previous version",
+    "nextBranch": "Next version"
   },
   "models": {
     "unavailable": "Unavailable",

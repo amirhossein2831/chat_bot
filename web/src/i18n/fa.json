@@ -36,7 +36,9 @@
     "copied": "کپی شد",
     "edit": "ویرایش",
     "save": "ذخیره",
-    "cancel": "انصراف"
+    "cancel": "انصراف",
+    "previousBranch": "پاسخ قبلی",
+    "nextBranch": "پاسخ بعدی"
   },
   "models": {
     "unavailable": "در دسترس نیست",
