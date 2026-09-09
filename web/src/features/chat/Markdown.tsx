@@ -1,3 +1,4 @@
+import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -8,7 +9,10 @@ function balanceFences(markdown: string): string {
   return fences % 2 === 1 ? `${markdown}\n\`\`\`` : markdown;
 }
 
-export function Markdown({ children }: { children: string }) {
+// Memoised on the text alone. Rendering markdown replaces the whole subtree,
+// so without this every refetch rebuilds the DOM of every answer in the
+// thread, not just the one that changed.
+export const Markdown = memo(function Markdown({ children }: { children: string }) {
   return (
     <div className="prose-chat flex flex-col gap-4 leading-[1.75]">
       <ReactMarkdown
@@ -36,4 +40,4 @@ export function Markdown({ children }: { children: string }) {
       </ReactMarkdown>
     </div>
   );
-}
+});
