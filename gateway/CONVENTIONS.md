@@ -78,6 +78,23 @@ Mapping exists in exactly two places and nowhere else:
   upstream provider detail to a client.
 - Ownership is enforced in the SQL `WHERE` clause, not in the service. A missed
   check in a service is an IDOR; a missed join returns zero rows.
+- **DRY.** Every rule has one home. Error-to-status mapping lives in one file,
+  Persian normalisation in one function, a config key in one struct field, a
+  wire format in one client package. If you are about to copy a second copy of
+  a rule, move it instead. The exception worth naming: duplication is cheaper
+  than the wrong abstraction, so wait for the third occurrence before
+  extracting something whose shape you are still guessing at.
+- **SOLID, as it applies in Go.**
+  - *Single responsibility*: a package changes for one reason. Controllers
+    parse, services orchestrate, repositories persist.
+  - *Open/closed*: a new provider is a new package satisfying `Provider`, never
+    another arm on a switch in `chat`.
+  - *Liskov*: every implementation honours the contract exactly. A stream ends
+    with exactly one terminal delta regardless of which client produced it.
+  - *Interface segregation*: interfaces are one to three methods and named for
+    what the caller wants, not what the implementation is.
+  - *Dependency inversion*: services depend on interfaces they declare;
+    concrete types are chosen only at the composition root.
 - Accept interfaces, return structs.
 - **One receiver kind per type.** If any method mutates, every method on
   that type takes a pointer. Mixing them keeps the value out of its own

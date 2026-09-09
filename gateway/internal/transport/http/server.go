@@ -1,0 +1,52 @@
+package http
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net"
+	"net/http"
+	"time"
+
+	"go.uber.org/fx"
+
+	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
+)
+
+func NewServer(lc fx.Lifecycle, cfg *config.Config, log *slog.Logger, h http.Handler) *http.Server {
+	srv := &http.Server{
+		Addr:              cfg.HTTP.Addr,
+		Handler:           h,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		// WriteTimeout must stay 0: it bounds the whole response, so any value
+		// silently truncates SSE streams that outlive it. Per-write deadlines
+		// are set by the SSE writer instead.
+		WriteTimeout: 0,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			ln, err := net.Listen("tcp", srv.Addr)
+			if err != nil {
+				return err
+			}
+			log.InfoContext(ctx, "http listening", "addr", srv.Addr)
+			go func() {
+				if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+					log.Error("http server stopped", "error", err)
+				}
+			}()
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			shutdownCtx, cancel := context.WithTimeout(ctx,
+				time.Duration(cfg.HTTP.ShutdownTimeout)*time.Second)
+			defer cancel()
+			return srv.Shutdown(shutdownCtx)
+		},
+	})
+
+	return srv
+}
