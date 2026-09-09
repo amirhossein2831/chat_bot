@@ -16,11 +16,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
-	"github.com/amirhossein2831/chat_bot/gateway/internal/controller"
 	pgrepo "github.com/amirhossein2831/chat_bot/gateway/internal/repository/postgres"
 	redisrepo "github.com/amirhossein2831/chat_bot/gateway/internal/repository/redis"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
 	httptransport "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/util/testutil"
 )
 

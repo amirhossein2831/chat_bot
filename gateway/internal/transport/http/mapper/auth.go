@@ -1,8 +1,8 @@
 package mapper
 
 import (
-	"github.com/amirhossein2831/chat_bot/gateway/internal/dto"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/model"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/dto"
 )
 
 func ToUserModel(req dto.RegisterRequest) model.User {

@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
-	"github.com/amirhossein2831/chat_bot/gateway/internal/dto"
-	"github.com/amirhossein2831/chat_bot/gateway/internal/mapper"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
 	httptransport "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/dto"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/mapper"
 	mw "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/middleware"
 )
 

@@ -8,11 +8,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
-	"github.com/amirhossein2831/chat_bot/gateway/internal/controller"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/infrastructure"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/repository"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service"
 	httptransport "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller"
 )
 
 func options() fx.Option {

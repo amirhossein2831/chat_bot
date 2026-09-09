@@ -46,9 +46,6 @@ func (r *UserRepository) one(ctx context.Context, query string, args ...any) (mo
 	return user, err
 }
 
-// Create claims the invite and inserts the user in one transaction. The
-// conditional update is what stops two simultaneous registrations consuming
-// the same code.
 func (r *UserRepository) Create(ctx context.Context, user model.User, invite string) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -56,8 +53,6 @@ func (r *UserRepository) Create(ctx context.Context, user model.User, invite str
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	// The user must exist before the invite can reference it: used_by is a
-	// foreign key. The transaction discards this insert if the claim fails.
 	_, err = tx.Exec(ctx,
 		`insert into users (id, email, password_hash, locale, dir_pref, status)
 		 values ($1, $2, $3, $4, $5, $6)`,
