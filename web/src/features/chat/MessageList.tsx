@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Message } from "./chatApi";
@@ -29,15 +29,64 @@ export function MessageList({
   onSelectBranch,
 }: Props) {
   const { t } = useTranslation();
-  const bottom = useRef<HTMLDivElement>(null);
+  const viewport = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
+  const lastTop = useRef(0);
+  const lastHeight = useRef(0);
+
+  // Instant, never smooth: an animated scroll keeps travelling toward the
+  // height it was started with, so an answer that grows mid-flight lands short
+  // by whatever it added. The turns fade in on their own; the scroll should
+  // simply stay at the bottom.
+  const pin = useCallback(() => {
+    const element = viewport.current;
+    if (!element || !stick.current) return;
+    element.scrollTop = element.scrollHeight;
+  }, []);
+
+  // The answer keeps growing after the last token: the stored copy replaces the
+  // buffer and re-renders taller. Watching the size covers every one of those
+  // steps, where watching the message list misses the ones that add no row.
+  useEffect(() => {
+    const element = content.current;
+    if (!element) return;
+
+    const observer = new ResizeObserver(pin);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [pin]);
 
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [messages.length, streamingText]);
+    stick.current = true;
+    pin();
+  }, [messages.length, pin]);
 
   return (
-    <div className="flex flex-1 justify-center overflow-y-auto px-4 pt-6 md:px-7">
-      <div className="flex w-full max-w-[720px] flex-col gap-6 pb-4">
+    <div
+      ref={viewport}
+      // Only a deliberate upward scroll gives up the bottom, and only when the
+      // content kept its size: an answer that shrinks for a frame, as the
+      // stored copy replaces the buffer, has its scrollTop clamped by the
+      // browser, and that is indistinguishable from a user scrolling up.
+      onScroll={(event) => {
+        const element = event.currentTarget;
+        const resized = element.scrollHeight !== lastHeight.current;
+
+        if (!resized && element.scrollTop < lastTop.current - 1) stick.current = false;
+        if (element.scrollHeight - element.scrollTop - element.clientHeight < 64) {
+          stick.current = true;
+        }
+
+        lastTop.current = element.scrollTop;
+        lastHeight.current = element.scrollHeight;
+      }}
+      // A column, not a row: stretched by a row container the thread would be
+      // locked to the viewport height and merely overflow it, so nothing
+      // observing it would ever see the answer grow.
+      className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4 pt-6 md:px-7"
+    >
+      <div ref={content} className="flex w-full max-w-[720px] flex-col gap-6 pb-4">
         {truncated && <Notice>{t("chat.truncated")}</Notice>}
         {reconnecting && <Notice>{t("chat.reconnecting")}</Notice>}
         {failed && <Notice tone="error">{t("chat.failed")}</Notice>}
@@ -66,7 +115,6 @@ export function MessageList({
           ),
         )}
 
-        <div ref={bottom} />
       </div>
     </div>
   );

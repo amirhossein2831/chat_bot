@@ -32,7 +32,10 @@ export function AppLayout() {
         <Sidebar />
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col">
+      {/* min-h-0 is load-bearing: without it this column refuses to shrink
+          below its content, the message list never becomes scrollable, and the
+          thread grows behind the composer instead. */}
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Outlet />
       </main>
     </div>
