@@ -39,3 +39,10 @@ export function useModels() {
     refetchInterval: 60_000,
   });
 }
+
+// The catalogue lives in the gateway config. A hardcoded id here would be a
+// second copy of it, wrong the first time a model is renamed.
+export function useDefaultModel(): string {
+  const { data } = useModels();
+  return data?.find((model) => model.available)?.id ?? data?.[0]?.id ?? "";
+}

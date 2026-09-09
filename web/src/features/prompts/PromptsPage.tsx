@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { useUiStore } from "../../app/store";
+import { useDefaultModel } from "../chat/useModels";
 import { useCreateConversation } from "../conversations/useConversations";
 import { usePrompts } from "./usePrompts";
 
@@ -16,6 +17,7 @@ export function PromptsPage() {
   const [category, setCategory] = useState("");
   const { data: prompts } = usePrompts(locale, "");
   const create = useCreateConversation();
+  const model = useDefaultModel();
 
   const categories = useMemo(
     () => [...new Set((prompts ?? []).map((prompt) => prompt.category))],
@@ -29,7 +31,7 @@ export function PromptsPage() {
   // A prompt is a starting point, not a message: it lands in the composer so
   // the user fills the blanks before sending.
   const start = async (body: string, title: string) => {
-    const conversation = await create.mutateAsync({ title, model: "qwen3-14b" });
+    const conversation = await create.mutateAsync({ title, model });
     setDraft(conversation.id, body);
     navigate(`/c/${conversation.id}`);
   };

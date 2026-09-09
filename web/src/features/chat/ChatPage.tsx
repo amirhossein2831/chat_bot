@@ -10,7 +10,7 @@ import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
 import { ModelPicker } from "./ModelPicker";
 import { useChatStream } from "./useChatStream";
-import { useModels } from "./useModels";
+import { useDefaultModel } from "./useModels";
 import { useSwitchBranch, useThread } from "./useThread";
 
 type PendingSend = { pending?: string; model?: string };
@@ -25,7 +25,7 @@ export function ChatPage() {
   const setDraft = useUiStore((state) => state.setDraft);
   const setSidebarOpen = useUiStore((state) => state.setSidebarOpen);
 
-  const { data: models } = useModels();
+  const fallbackModel = useDefaultModel();
   const [model, setModel] = useState("");
 
   const { data: messages, refetch } = useThread(id);
@@ -39,8 +39,7 @@ export function ChatPage() {
 
   const stream = useChatStream(onFinished, onFinished);
 
-  const chosenModel =
-    model || models?.find((candidate) => candidate.available)?.id || "qwen3-14b";
+  const chosenModel = model || fallbackModel;
 
   // Reset and pending-send must happen in one effect and in this order.
   // Split across two, the reset aborted the send that had just started.
