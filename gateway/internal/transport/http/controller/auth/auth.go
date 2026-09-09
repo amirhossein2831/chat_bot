@@ -6,8 +6,8 @@ import (
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
 	authservice "github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
-	httptransport "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/dto"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/httpio"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/mapper"
 	mw "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/middleware"
 )
@@ -30,51 +30,51 @@ func NewController(service *authservice.Service, cfg *config.Config) *Controller
 
 func (c *Controller) Register(w http.ResponseWriter, r *http.Request) {
 	var req dto.RegisterRequest
-	if err := httptransport.Decode(w, r, &req); err != nil {
-		httptransport.WriteError(w, err)
+	if err := httpio.Decode(w, r, &req); err != nil {
+		httpio.Error(w, err)
 		return
 	}
 
 	user, err := c.service.Register(r.Context(), mapper.ToUserModel(req), req.Password, req.Invite)
 	if err != nil {
-		httptransport.WriteError(w, err)
+		httpio.Error(w, err)
 		return
 	}
 
-	httptransport.WriteJSON(w, http.StatusCreated, mapper.ToUserResponse(user))
+	httpio.JSON(w, http.StatusCreated, mapper.ToUserResponse(user))
 }
 
 func (c *Controller) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
-	if err := httptransport.Decode(w, r, &req); err != nil {
-		httptransport.WriteError(w, err)
+	if err := httpio.Decode(w, r, &req); err != nil {
+		httpio.Error(w, err)
 		return
 	}
 
 	token, user, err := c.service.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		httptransport.WriteError(w, err)
+		httpio.Error(w, err)
 		return
 	}
 
 	http.SetCookie(w, c.cookie(token, c.ttl))
-	httptransport.WriteJSON(w, http.StatusOK, mapper.ToUserResponse(user))
+	httpio.JSON(w, http.StatusOK, mapper.ToUserResponse(user))
 }
 
 func (c *Controller) Logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(sessionCookie); err == nil {
 		if err := c.service.Logout(r.Context(), cookie.Value); err != nil {
-			httptransport.WriteError(w, err)
+			httpio.Error(w, err)
 			return
 		}
 	}
 
 	http.SetCookie(w, c.cookie("", -time.Second))
-	w.WriteHeader(http.StatusNoContent)
+	httpio.NoContent(w)
 }
 
 func (c *Controller) Me(w http.ResponseWriter, r *http.Request) {
-	httptransport.WriteJSON(w, http.StatusOK, mapper.ToUserResponse(mw.UserFrom(r.Context())))
+	httpio.JSON(w, http.StatusOK, mapper.ToUserResponse(mw.UserFrom(r.Context())))
 }
 
 func (c *Controller) cookie(value string, ttl time.Duration) *http.Cookie {

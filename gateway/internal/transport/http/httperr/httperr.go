@@ -1,14 +1,15 @@
-package http
+package httperr
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/constants"
 )
 
-type errorBody struct {
+const internalCode = "internal_error"
+
+type Payload struct {
 	Error string `json:"error"`
 	Code  string `json:"code"`
 }
@@ -31,25 +32,11 @@ var mappings = []mapping{
 	{constants.ErrContextTooLarge, http.StatusRequestEntityTooLarge, "context_too_large"},
 }
 
-// WriteError is the only place an error becomes a status code. Services never
-// import net/http.
-func WriteError(w http.ResponseWriter, err error) {
+func Map(err error) (int, Payload) {
 	for _, m := range mappings {
 		if errors.Is(err, m.err) {
-			WriteJSON(w, m.status, errorBody{Error: err.Error(), Code: m.code})
-			return
+			return m.status, Payload{Error: err.Error(), Code: m.code}
 		}
 	}
-	// An unmapped error carries DSNs, table names and upstream detail, so the
-	// client is told nothing beyond the code.
-	WriteJSON(w, http.StatusInternalServerError, errorBody{
-		Error: "internal_error",
-		Code:  "internal_error",
-	})
-}
-
-func WriteJSON(w http.ResponseWriter, status int, body any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
+	return http.StatusInternalServerError, Payload{Error: internalCode, Code: internalCode}
 }

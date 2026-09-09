@@ -5,7 +5,7 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
-	httptransport "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/httpio"
 	mw "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/middleware"
 )
 
@@ -27,7 +27,7 @@ func New(p Params) *chi.Mux {
 		public := api.Group(nil)
 
 		protected := api.Group(nil)
-		protected.Use(mw.RequireAuth(p.Auth, httptransport.WriteError))
+		protected.Use(mw.RequireAuth(p.Auth, httpio.Error))
 
 		scopes := Routers{Root: root, Public: public, Protected: protected}
 		for _, registrar := range p.Registrars {
