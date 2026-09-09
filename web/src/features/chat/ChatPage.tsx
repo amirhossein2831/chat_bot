@@ -11,6 +11,7 @@ import { MessageList } from "./MessageList";
 import { ModelPicker } from "./ModelPicker";
 import { useChatStream } from "./useChatStream";
 import { useDefaultModel } from "./useModels";
+import { Suggestions } from "./Suggestions";
 import { useSwitchBranch, useThread } from "./useThread";
 
 type PendingSend = { pending?: string; model?: string };
@@ -218,9 +219,13 @@ export function ChatPage() {
       )}
 
       {empty ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2.5 px-6 pb-10 text-center">
-          <h1 className="m-0 text-[26px] font-semibold tracking-tight">{t("empty.title")}</h1>
-          <p className="m-0 max-w-[46ch] text-[14.5px] text-muted">{t("empty.subtitle")}</p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 pb-10">
+          <div className="flex flex-col items-center gap-2.5 text-center">
+            <h1 className="m-0 text-[26px] font-semibold tracking-tight">{t("empty.title")}</h1>
+            <p className="m-0 max-w-[46ch] text-[14.5px] text-muted">{t("empty.subtitle")}</p>
+          </div>
+
+          <Suggestions onPick={(body) => setDraft(draftKey, body)} />
         </div>
       ) : (
         <MessageList

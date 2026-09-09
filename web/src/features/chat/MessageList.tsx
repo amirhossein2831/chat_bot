@@ -42,6 +42,11 @@ export function MessageList({
   const lastTop = useRef(0);
   const lastHeight = useRef(0);
 
+  // Mirrored in a ref so the scroll handler can tell a crossing from a repeat
+  // and only re-render when the answer actually goes out of view.
+  const near = useRef(true);
+  const [atBottom, setAtBottom] = useState(true);
+
   // Instant, never smooth: an animated scroll keeps travelling toward the
   // height it was started with, so an answer that grows mid-flight lands short
   // by whatever it added. The turns fade in on their own; the scroll should
@@ -50,6 +55,14 @@ export function MessageList({
     const element = viewport.current;
     if (!element || !stick.current) return;
     element.scrollTop = element.scrollHeight;
+  }, []);
+
+  const jump = useCallback(() => {
+    const element = viewport.current;
+    if (!element) return;
+
+    stick.current = true;
+    element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
   }, []);
 
   // The answer keeps growing after the last token: the stored copy replaces the
@@ -70,66 +83,87 @@ export function MessageList({
   }, [messages.length, pin]);
 
   return (
-    <div
-      ref={viewport}
-      // Only a deliberate upward scroll gives up the bottom, and only when the
-      // content kept its size: an answer that shrinks for a frame, as the
-      // stored copy replaces the buffer, has its scrollTop clamped by the
-      // browser, and that is indistinguishable from a user scrolling up.
-      onScroll={(event) => {
-        const element = event.currentTarget;
-        const resized = element.scrollHeight !== lastHeight.current;
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div
+        ref={viewport}
+        // Only a deliberate upward scroll gives up the bottom, and only when
+        // the content kept its size: an answer that shrinks for a frame, as
+        // the stored copy replaces the buffer, has its scrollTop clamped by
+        // the browser, and that cannot be told from a user scrolling up.
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          const resized = element.scrollHeight !== lastHeight.current;
+          const nearBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 64;
 
-        if (!resized && element.scrollTop < lastTop.current - 1) stick.current = false;
-        if (element.scrollHeight - element.scrollTop - element.clientHeight < 64) {
-          stick.current = true;
-        }
+          if (!resized && element.scrollTop < lastTop.current - 1) stick.current = false;
+          if (nearBottom) stick.current = true;
 
-        lastTop.current = element.scrollTop;
-        lastHeight.current = element.scrollHeight;
-      }}
-      // A column, not a row: stretched by a row container the thread would be
-      // locked to the viewport height and merely overflow it, so nothing
-      // observing it would ever see the answer grow.
-      className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4 pt-4 md:px-7"
-    >
-      <div ref={content} className="flex w-full max-w-[736px] flex-col gap-7 pb-6">
-        {truncated && <Notice>{t("chat.truncated")}</Notice>}
-        {reconnecting && <Notice>{t("chat.reconnecting")}</Notice>}
-        {failed && <Notice tone="error">{t("chat.failed")}</Notice>}
+          if (nearBottom !== near.current) {
+            near.current = nearBottom;
+            setAtBottom(nearBottom);
+          }
 
-        {/* Keyed by position, not id: the optimistic user turn and the server
-            copy that replaces it share a slot, so the bubble is never
-            remounted and never replays its entry animation. */}
-        {messages.map((message, index) =>
-          message.role === "user" ? (
-            <UserTurn
-              key={index}
-              message={message}
-              siblings={siblingsOf(message)}
-              onSelectBranch={onSelectBranch}
-              onEdit={onEdit}
-            />
-          ) : (
-            <AssistantTurn
-              key={index}
-              message={message}
-              // Only the message this stream was told it is writing into shows
-              // the buffer. Assuming it is the last one blanks the previous
-              // answer for as long as a new send takes to be confirmed.
-              // Both conditions matter: the id alone keeps pointing at this
-              // message after the stream ends, and would leave it rendering an
-              // empty buffer for good.
-              text={streaming && message.id === streamingId ? streamingText : message.content}
-              streaming={streaming && message.id === streamingId}
-              siblings={siblingsOf(message)}
-              onSelectBranch={onSelectBranch}
-              onRegenerate={onRegenerate}
-            />
-          ),
-        )}
+          lastTop.current = element.scrollTop;
+          lastHeight.current = element.scrollHeight;
+        }}
+        // A column, not a row: stretched by a row container the thread would
+        // be locked to the viewport height and merely overflow it, so nothing
+        // observing it would ever see the answer grow.
+        className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4 pt-4 md:px-7"
+      >
+        <div ref={content} className="flex w-full max-w-[736px] flex-col gap-7 pb-6">
+          {truncated && <Notice>{t("chat.truncated")}</Notice>}
+          {reconnecting && <Notice>{t("chat.reconnecting")}</Notice>}
+          {failed && <Notice tone="error">{t("chat.failed")}</Notice>}
 
+          {/* Keyed by position, not id: the optimistic user turn and the server
+              copy that replaces it share a slot, so the bubble is never
+              remounted and never replays its entry animation. */}
+          {messages.map((message, index) =>
+            message.role === "user" ? (
+              <UserTurn
+                key={index}
+                message={message}
+                siblings={siblingsOf(message)}
+                onSelectBranch={onSelectBranch}
+                onEdit={onEdit}
+              />
+            ) : (
+              <AssistantTurn
+                key={index}
+                message={message}
+                // Only the message this stream was told it is writing into shows
+                // the buffer. Assuming it is the last one blanks the previous
+                // answer for as long as a new send takes to be confirmed.
+                // Both conditions matter: the id alone keeps pointing at this
+                // message after the stream ends, and would leave it rendering an
+                // empty buffer for good.
+                text={streaming && message.id === streamingId ? streamingText : message.content}
+                streaming={streaming && message.id === streamingId}
+                siblings={siblingsOf(message)}
+                onSelectBranch={onSelectBranch}
+                onRegenerate={onRegenerate}
+              />
+            ),
+          )}
+        </div>
       </div>
+
+      {!atBottom && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+          <button
+            type="button"
+            onClick={jump}
+            aria-label={t("chat.jumpToLatest")}
+            className="pointer-events-auto flex size-9 items-center justify-center rounded-full bg-paper text-muted shadow-[var(--shadow-lift)] transition hover:text-ink"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14" />
+              <path d="m6 13 6 6 6-6" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

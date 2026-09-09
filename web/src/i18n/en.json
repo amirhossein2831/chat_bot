@@ -38,7 +38,8 @@
     "save": "Save",
     "cancel": "Cancel",
     "previousBranch": "Previous version",
-    "nextBranch": "Next version"
+    "nextBranch": "Next version",
+    "jumpToLatest": "Jump to latest"
   },
   "models": {
     "unavailable": "Unavailable",

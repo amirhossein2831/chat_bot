@@ -38,7 +38,8 @@
     "save": "ذخیره",
     "cancel": "انصراف",
     "previousBranch": "پاسخ قبلی",
-    "nextBranch": "پاسخ بعدی"
+    "nextBranch": "پاسخ بعدی",
+    "jumpToLatest": "رفتن به آخرین پیام"
   },
   "models": {
     "unavailable": "در دسترس نیست",
