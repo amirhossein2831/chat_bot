@@ -42,7 +42,10 @@ function toDollarMath(markdown: string): string {
       index % 2 === 1
         ? part
         : part
-            .replace(/\\\[([\s\S]+?)\\\]/g, (_, body: string) => `$$${body}$$`)
+            // A display formula has to stand on its own lines. Written inline
+            // it is parsed as ordinary maths and rendered in text style, where
+            // fractions shrink to fit the sentence.
+            .replace(/\\\[([\s\S]+?)\\\]/g, (_, body: string) => `\n\n$$\n${body.trim()}\n$$\n\n`)
             .replace(/\\\(([\s\S]+?)\\\)/g, (_, body: string) => `$${body}$`),
     )
     .join("");
