@@ -13,7 +13,12 @@ const router = createBrowserRouter([
         <AppLayout />
       </RequireAuth>
     ),
-    children: [{ index: true, element: <Placeholder /> }],
+    children: [
+      { index: true, element: <Placeholder /> },
+      { path: "c/:id", element: <Placeholder /> },
+      { path: "prompts", element: <Placeholder /> },
+      { path: "memory", element: <Placeholder /> },
+    ],
   },
 ]);
 
