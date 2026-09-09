@@ -268,11 +268,16 @@ export function useChatStream(onFinished: () => void, onStarted?: () => void) {
   const stop = useCallback(async () => {
     const { messageId } = state;
     controller.current?.abort();
-    setState((current) => ({ ...current, streaming: false, reconnecting: false }));
 
+    // streaming stays true, and with it the text already received, until the
+    // stored copy has been fetched. Dropping it first blanks the answer: the
+    // thread in hand was fetched when this message was still empty.
     if (messageId) {
       await stopGeneration(messageId).catch(() => undefined);
+      finished.current();
     }
+
+    setState((current) => ({ ...current, streaming: false, reconnecting: false }));
   }, [state]);
 
   // Without this the caller re-resumes the same dead generation on every
