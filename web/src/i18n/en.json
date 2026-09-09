@@ -28,7 +28,9 @@
     "branch": "{{current}} of {{total}}",
     "reconnecting": "Connection lost, reconnecting…",
     "failed": "No reply. The model is unavailable or the request failed.",
-    "modelDown": "This model is unavailable right now. Your message was saved; try again later."
+    "modelDown": "This model is unavailable right now. Your message was saved; try again later.",
+    "quotaExceeded": "You have used today's message allowance. Try again tomorrow.",
+    "notAllowed": "Your current plan does not include this model."
   },
   "models": {
     "unavailable": "Unavailable",

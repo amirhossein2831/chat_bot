@@ -15,6 +15,14 @@ import { useSwitchBranch, useThread } from "./useThread";
 
 type PendingSend = { pending?: string; model?: string };
 
+// Every one of these reaches the user as "something went wrong" unless it is
+// named here, which hides the two failures they can actually act on.
+const failureMessages: Record<string, string> = {
+  model_unavailable: "chat.modelDown",
+  quota_exceeded: "chat.quotaExceeded",
+  forbidden: "chat.notAllowed",
+};
+
 function optimisticTurn(content: string): Message {
   return {
     id: "pending",
@@ -153,7 +161,7 @@ export function ChatPage() {
               <circle cx="12" cy="12" r="9" />
               <path d="M12 8v4.5M12 16h.01" />
             </svg>
-            {t(stream.failureCode === "model_unavailable" ? "chat.modelDown" : "chat.failed")}
+            {t(failureMessages[stream.failureCode ?? ""] ?? "chat.failed")}
           </div>
         </div>
       )}
