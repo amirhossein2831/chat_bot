@@ -79,5 +79,10 @@
   "empty": {
     "title": "How can I help?",
     "subtitle": "Write your question, or pick a starting point from the prompt library."
+  },
+  "conversation": {
+    "menu": "Options",
+    "rename": "Rename",
+    "delete": "Delete chat"
   }
 }

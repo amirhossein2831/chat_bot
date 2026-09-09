@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { useUiStore } from "../../app/store";
-import { formatRelative } from "../../lib/format";
-import { useMe } from "../auth/useAuth";
+import { useLogout, useMe } from "../auth/useAuth";
+import { ConversationRow } from "./ConversationRow";
 import { useConversations } from "./useConversations";
 import { useDebounced } from "./useDebounced";
 
@@ -12,7 +12,6 @@ export function Sidebar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const locale = useUiStore((state) => state.locale);
   const setSidebarOpen = useUiStore((state) => state.setSidebarOpen);
 
   const [query, setQuery] = useState("");
@@ -20,6 +19,7 @@ export function Sidebar() {
 
   const { data: conversations } = useConversations(debounced);
   const { data: me } = useMe();
+  const logout = useLogout();
 
   const startConversation = () => {
     setSidebarOpen(false);
@@ -96,25 +96,13 @@ export function Sidebar() {
         )}
 
         {conversations?.map((conversation) => (
-          <NavLink
+          <ConversationRow
             key={conversation.id}
-            to={`/c/${conversation.id}`}
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              [
-                "flex min-h-11 flex-col justify-center gap-0.5 rounded-[9px] px-2.5 py-2 md:min-h-0",
-                isActive ? "bg-surface shadow-[inset_0_0_0_1px_var(--color-accent-soft)]" : "hover:bg-surface/60",
-              ].join(" ")
-            }
-          >
-            <span className="truncate text-[13.5px]">
-              {conversation.title || t("nav.newChat")}
-            </span>
-            <span className="text-xs text-muted">
-              {formatRelative(conversation.createdAt, locale)}
-            </span>
-          </NavLink>
+            conversation={conversation}
+            onOpen={() => setSidebarOpen(false)}
+          />
         ))}
+
       </nav>
 
       <div className="mt-auto flex items-center gap-2.5 border-t border-line px-[18px] py-3.5">
@@ -122,6 +110,22 @@ export function Sidebar() {
           {me?.email.slice(0, 1).toUpperCase() ?? "?"}
         </div>
         <span className="min-w-0 flex-1 truncate text-[13px]">{me?.email}</span>
+        <button
+          type="button"
+          onClick={() => {
+            logout.mutate(undefined, { onSuccess: () => navigate("/login") });
+          }}
+          aria-label={t("auth.logout")}
+          title={t("auth.logout")}
+          className="flex size-11 items-center justify-center rounded-lg text-muted hover:bg-surface md:size-8"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8" />
+            <path d="M17 15l4-3-4-3" />
+            <path d="M21 12H10" />
+          </svg>
+        </button>
+
         <NavLink
           to="/memory"
           onClick={() => setSidebarOpen(false)}
