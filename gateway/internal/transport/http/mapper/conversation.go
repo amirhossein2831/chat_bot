@@ -47,7 +47,11 @@ func ToMessageResponse(m model.Message) dto.MessageResponse {
 func ToThreadResponse(t domain.Thread) dto.ThreadResponse {
 	messages := make([]dto.MessageResponse, 0, t.Len())
 	for _, m := range t.Messages {
-		messages = append(messages, ToMessageResponse(m))
+		response := ToMessageResponse(m)
+		for _, sibling := range t.Siblings[m.ID] {
+			response.Siblings = append(response.Siblings, sibling.String())
+		}
+		messages = append(messages, response)
 	}
 	return dto.ThreadResponse{Messages: messages}
 }

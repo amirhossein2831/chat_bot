@@ -37,11 +37,22 @@ func (c *Controller) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var editOf *uuid.UUID
+	if req.EditOf != "" {
+		parsed, err := uuid.Parse(req.EditOf)
+		if err != nil {
+			httpio.Error(w, constants.ErrBadRequest)
+			return
+		}
+		editOf = &parsed
+	}
+
 	started, err := c.service.Send(r.Context(), chatservice.SendCommand{
 		UserID:         mw.UserFrom(r.Context()).ID,
 		ConversationID: conversationID,
 		Content:        req.Content,
 		Model:          req.Model,
+		EditOf:         editOf,
 	})
 	if err != nil {
 		httpio.Error(w, err)

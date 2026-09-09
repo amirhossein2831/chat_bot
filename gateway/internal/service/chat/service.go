@@ -28,6 +28,10 @@ type SendCommand struct {
 	ConversationID uuid.UUID
 	Content        string
 	Model          string
+	// EditOf names a question being asked again in different words. The new
+	// turn hangs where that one hangs, so the original and its answer stay
+	// where they were and the two become siblings.
+	EditOf *uuid.UUID
 }
 
 type RegenerateCommand struct {
@@ -97,7 +101,7 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 		modelID = conversation.DefaultModel
 	}
 
-	thread, err := s.conversations.Thread(ctx, conversation.ID, threadLimit)
+	thread, parent, err := s.history(ctx, conversation, cmd.EditOf)
 	if err != nil {
 		return Started{}, err
 	}
@@ -105,7 +109,7 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 	userMessage := model.Message{
 		ID:             uuid.New(),
 		ConversationID: conversation.ID,
-		ParentID:       conversation.HeadMessageID,
+		ParentID:       parent,
 		Role:           model.RoleUser,
 		Content:        cmd.Content,
 		Status:         model.MessageStatusComplete,
@@ -136,6 +140,34 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 			return s.conversations.AppendPair(ctx, userMessage, m)
 		},
 	})
+}
+
+// history is the conversation so far and the turn the new one hangs from.
+// Editing hangs the replacement where the original hung, which is nowhere at
+// all when the original was the first thing said.
+func (s *Service) history(
+	ctx context.Context,
+	conversation model.Conversation,
+	editOf *uuid.UUID,
+) (domain.Thread, *uuid.UUID, error) {
+	if editOf == nil {
+		thread, err := s.conversations.Thread(ctx, conversation.ID, threadLimit)
+		return thread, conversation.HeadMessageID, err
+	}
+
+	original, err := s.conversations.Message(ctx, *editOf)
+	if err != nil {
+		return domain.Thread{}, nil, err
+	}
+	if original.ConversationID != conversation.ID || original.Role != model.RoleUser {
+		return domain.Thread{}, nil, constants.ErrNotFound
+	}
+	if original.ParentID == nil {
+		return domain.Thread{}, nil, nil
+	}
+
+	thread, err := s.conversations.ThreadTo(ctx, *original.ParentID, threadLimit)
+	return thread, original.ParentID, err
 }
 
 // Regenerate answers an existing turn again. The previous answer is kept as a

@@ -38,6 +38,15 @@ with recursive path as (
 
 // threadToQuery walks from a named message instead of the head, which is what
 // a regeneration needs: the branch being replaced is not on the path.
+const deepestQuery = `
+with recursive subtree as (
+    select m.id, m.created_at, 0 as depth from messages m where m.id = $1
+  union all
+    select c.id, c.created_at, s.depth + 1
+      from messages c join subtree s on c.parent_id = s.id
+)
+select id from subtree order by depth desc, created_at desc limit 1`
+
 const threadToQuery = `
 with recursive path as (
     select m.* from messages m where m.id = $1` + threadWalk
@@ -170,6 +179,22 @@ func (r *ConversationRepository) ThreadTo(ctx context.Context, messageID uuid.UU
 	return domain.ThreadFrom(messages), nil
 }
 
+// DeepestDescendant follows a branch back down to its newest leaf. Switching
+// to a sibling would otherwise leave the head on the sibling itself, hiding
+// every turn that was written under it.
+func (r *ConversationRepository) DeepestDescendant(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	rows, err := r.db.Query(ctx, deepestQuery, id)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	leaf, err := pgx.CollectExactlyOneRow(rows, pgx.RowTo[uuid.UUID])
+	if errors.Is(err, pgx.ErrNoRows) {
+		return id, nil
+	}
+	return leaf, err
+}
+
 func (r *ConversationRepository) Message(ctx context.Context, id uuid.UUID) (model.Message, error) {
 	rows, err := r.db.Query(ctx, `select `+messageColumns+` from messages where id = $1`, id)
 	if err != nil {
@@ -191,6 +216,27 @@ func (r *ConversationRepository) Siblings(ctx context.Context, parentID uuid.UUI
 		return nil, err
 	}
 	return pgx.CollectRows(rows, pgx.RowToStructByName[model.Message])
+}
+
+// SiblingSets returns every message sharing a parent with one on the given
+// path. A thread is a single path, so the branches beside it are invisible
+// without this and nothing a regeneration produced could be reached again.
+func (r *ConversationRepository) SiblingSets(
+	ctx context.Context,
+	conversationID uuid.UUID,
+	parents []uuid.UUID,
+	includeRoot bool,
+) ([]domain.Sibling, error) {
+	rows, err := r.db.Query(ctx,
+		`select id, parent_id from messages
+		  where conversation_id = $1
+		    and (parent_id = any($2) or ($3 and parent_id is null))
+		  order by created_at`,
+		conversationID, parents, includeRoot)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByPos[domain.Sibling])
 }
 
 func (r *ConversationRepository) Append(ctx context.Context, m model.Message) error {

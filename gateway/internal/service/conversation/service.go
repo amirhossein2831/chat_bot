@@ -58,7 +58,27 @@ func (s *Service) Thread(ctx context.Context, id, userID uuid.UUID) (domain.Thre
 	if _, err := s.repo.Get(ctx, id, userID); err != nil {
 		return domain.Thread{}, err
 	}
-	return s.repo.Thread(ctx, id, defaultThreadLimit)
+
+	thread, err := s.repo.Thread(ctx, id, defaultThreadLimit)
+	if err != nil {
+		return domain.Thread{}, err
+	}
+
+	parents := make([]uuid.UUID, 0, len(thread.Messages))
+	root := false
+	for _, m := range thread.Messages {
+		if m.ParentID == nil {
+			root = true
+			continue
+		}
+		parents = append(parents, *m.ParentID)
+	}
+
+	siblings, err := s.repo.SiblingSets(ctx, id, parents, root)
+	if err != nil {
+		return domain.Thread{}, err
+	}
+	return thread.WithSiblings(siblings), nil
 }
 
 // SwitchBranch moves the conversation head to a sibling of the current one,
@@ -74,30 +94,49 @@ func (s *Service) SwitchBranch(ctx context.Context, conversationID, userID, mess
 		return err
 	}
 	if !containsMessage(thread, messageID) {
-		if err := s.verifySibling(ctx, thread, messageID); err != nil {
+		if err := s.verifySibling(ctx, conversation.ID, thread, messageID); err != nil {
 			return err
 		}
 	}
 
-	return s.repo.SetHead(ctx, conversationID, messageID)
-}
-
-func (s *Service) verifySibling(ctx context.Context, thread domain.Thread, messageID uuid.UUID) error {
-	head, ok := thread.Head()
-	if !ok || head.ParentID == nil {
-		return constants.ErrNotFound
-	}
-
-	siblings, err := s.repo.Siblings(ctx, *head.ParentID)
+	head, err := s.repo.DeepestDescendant(ctx, messageID)
 	if err != nil {
 		return err
 	}
-	for _, sibling := range siblings {
-		if sibling.ID == messageID {
+	return s.repo.SetHead(ctx, conversationID, head)
+}
+
+// verifySibling accepts any branch that forks off the path being viewed, not
+// only one hanging beside its last turn: editing a question halfway up the
+// thread forks there, and that branch has to remain reachable. A fork at the
+// very start has no parent at all, which is a sibling relationship too.
+func (s *Service) verifySibling(
+	ctx context.Context,
+	conversationID uuid.UUID,
+	thread domain.Thread,
+	messageID uuid.UUID,
+) error {
+	target, err := s.repo.Message(ctx, messageID)
+	if err != nil {
+		return err
+	}
+	if target.ConversationID != conversationID {
+		return constants.ErrNotFound
+	}
+
+	for _, m := range thread.Messages {
+		if samePosition(m.ParentID, target.ParentID) {
 			return nil
 		}
 	}
 	return constants.ErrNotFound
+}
+
+func samePosition(a, b *uuid.UUID) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }
 
 func containsMessage(thread domain.Thread, id uuid.UUID) bool {
