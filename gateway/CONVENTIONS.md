@@ -26,6 +26,11 @@ Rationale lives in spec sections 5 and 6. These are the enforceable rules.
   invert the dependency. Name the type for what it describes
   (`MessageStatus`, `UserStatus`) so two unrelated status sets cannot be
   assigned to each other.
+- **Enum file layout**: all type declarations first, one per line; then one
+  `const` block per enum; then the methods. Not type-and-consts interleaved
+  per enum.
+- When a comment is warranted at all, begin it with the identifier it
+  documents: `// MarkComplete settles quota, so a second call would ...`.
 - `domain` may import `model`. `model` imports nothing from this codebase.
 - `repository` and `client` never import `service` — Go's implicit interface
   satisfaction means they do not have to. fx binds them.

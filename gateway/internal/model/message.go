@@ -33,7 +33,7 @@ type Message struct {
 
 func (m *Message) IsTerminal() bool { return m.Status.Terminal() }
 
-// Quota is settled from this transition, so a second one would double-debit.
+// MarkComplete Quota is settled from this transition, so a second one would double-debit.
 func (m *Message) MarkComplete(u Usage) error {
 	if m.Status != MessageStatusStreaming {
 		return fmt.Errorf("%w: cannot complete a %s message", constants.ErrInvalidTransition, m.Status)
