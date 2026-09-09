@@ -33,8 +33,12 @@ type Budget interface {
 	Release(ctx context.Context, r quota.Reservation) error
 }
 
-// Recaller supplies per-user memory. It may be nil until the memory service
-// exists, in which case prompts carry no memory.
 type Recaller interface {
 	Context(ctx context.Context, userID uuid.UUID) (domain.MemoryContext, error)
+}
+
+// Observer is told about finished exchanges so memory can learn from them. It
+// is best effort and must never affect the conversation that triggered it.
+type Observer interface {
+	Observe(userID, messageID uuid.UUID, userText, assistantText string)
 }

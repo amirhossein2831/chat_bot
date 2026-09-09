@@ -13,6 +13,7 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
 	chatservice "github.com/amirhossein2831/chat_bot/gateway/internal/service/chat"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/conversation"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/service/memory"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/quota"
 )
 
@@ -49,6 +50,10 @@ var Module = fx.Module("repository",
 				return redisrepo.NewQuotaRepository(client)
 			},
 			fx.As(new(quota.Counters)),
+		),
+		fx.Annotate(
+			func(db *pgxpool.Pool) *pgrepo.MemoryRepository { return pgrepo.NewMemoryRepository(db) },
+			fx.As(new(memory.Repository)),
 		),
 	),
 )

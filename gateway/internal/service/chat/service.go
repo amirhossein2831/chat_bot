@@ -40,6 +40,7 @@ type Service struct {
 	catalogue     Catalogue
 	budget        Budget
 	recaller      Recaller
+	observer      Observer
 	live          *liveRegistry
 	log           *zap.Logger
 }
@@ -49,6 +50,8 @@ func NewService(
 	completer Completer,
 	catalogue Catalogue,
 	budget Budget,
+	recaller Recaller,
+	observer Observer,
 	log *zap.Logger,
 ) *Service {
 	return &Service{
@@ -56,6 +59,8 @@ func NewService(
 		completer:     completer,
 		catalogue:     catalogue,
 		budget:        budget,
+		recaller:      recaller,
+		observer:      observer,
 		live:          newLiveRegistry(),
 		log:           log,
 	}
@@ -128,7 +133,7 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 	s.live.add(assistant.ID, stream)
 	subscription := stream.Subscribe()
 
-	go s.consume(genCtx, upstream, stream, assistant, reservation)
+	go s.consume(genCtx, upstream, stream, assistant, reservation, cmd.UserID, cmd.Content)
 
 	return Started{MessageID: assistant.ID, Truncated: prompt.Truncated(), Deltas: subscription}, nil
 }
@@ -160,6 +165,8 @@ func (s *Service) consume(
 	stream *LiveStream,
 	assistant model.Message,
 	reservation quota.Reservation,
+	userID uuid.UUID,
+	userText string,
 ) {
 	defer s.live.remove(assistant.ID)
 	defer stream.close()
@@ -187,6 +194,7 @@ func (s *Service) consume(
 		case delta, ok := <-upstream:
 			if !ok {
 				s.finish(persistCtx, stream, assistant, reservation, string(content), nil)
+				s.observe(userID, assistant.ID, userText, string(content))
 				return
 			}
 			stream.publish(delta)
@@ -198,6 +206,7 @@ func (s *Service) consume(
 
 			case provider.DeltaDone:
 				s.finish(persistCtx, stream, assistant, reservation, string(content), delta.Usage)
+				s.observe(userID, assistant.ID, userText, string(content))
 				return
 
 			case provider.DeltaError:
@@ -240,6 +249,13 @@ func (s *Service) finish(
 	if err := s.conversations.Finalize(ctx, assistant); err != nil {
 		s.log.Error("finalize failed", zap.Error(err))
 	}
+}
+
+func (s *Service) observe(userID, messageID uuid.UUID, userText, assistantText string) {
+	if s.observer == nil || assistantText == "" {
+		return
+	}
+	s.observer.Observe(userID, messageID, userText, assistantText)
 }
 
 func (s *Service) memory(ctx context.Context, userID uuid.UUID) domain.MemoryContext {
