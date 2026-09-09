@@ -20,6 +20,12 @@ Rationale lives in spec sections 5 and 6. These are the enforceable rules.
 | Domain | non-persisted types, cross-entity logic | persistence concerns |
 
 - `model` has a table. `domain` does not.
+- Enums live in `model/enums.go`, each with its own named type and a
+  `Valid()` method. They are domain vocabulary, not constants: a
+  `constants.Role` would split the entity definition across packages and
+  invert the dependency. Name the type for what it describes
+  (`MessageStatus`, `UserStatus`) so two unrelated status sets cannot be
+  assigned to each other.
 - `domain` may import `model`. `model` imports nothing from this codebase.
 - `repository` and `client` never import `service` — Go's implicit interface
   satisfaction means they do not have to. fx binds them.
