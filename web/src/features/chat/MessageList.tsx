@@ -88,9 +88,11 @@ function Notice({ children, tone }: { children: React.ReactNode; tone?: "error" 
 
 function UserTurn({ message }: { message: Message }) {
   return (
-    <div className="flex justify-start">
-      <div className="max-w-[85%] rounded-[14px] rounded-es-[4px] bg-accent-soft px-4 py-3 text-[14.5px]">
-        {message.content}
+    <div dir="ltr" className="flex justify-end">
+      <div className="max-w-[85%] rounded-[16px] rounded-ee-[5px] bg-accent-soft px-4 py-2.5 text-[15px]">
+        <div dir="auto" className="whitespace-pre-wrap">
+          {message.content}
+        </div>
       </div>
     </div>
   );
@@ -107,29 +109,21 @@ type AssistantProps = {
 function AssistantTurn({ message, text, streaming, siblings, onSelectBranch }: AssistantProps) {
   const { t } = useTranslation();
 
+  // The reply carries its own direction: a Persian answer reads from the
+  // right, an English one from the left, whatever the interface language is.
   return (
-    <div className="flex justify-end gap-3">
-      <div className="flex min-w-0 max-w-[85%] flex-col items-end gap-2">
-        <div className="w-full rounded-[14px] rounded-ee-[4px] border border-line bg-raised px-4 py-3">
-          <Markdown>{text}</Markdown>
-        </div>
+    <div dir="auto" className="flex flex-col gap-3">
+      <Markdown>{text}</Markdown>
 
-        <div className="flex items-center gap-3.5">
-          <BranchSwitcher siblings={siblings} current={message.id} onSelect={onSelectBranch} />
+      <div className="flex items-center gap-3.5">
+        <BranchSwitcher siblings={siblings} current={message.id} onSelect={onSelectBranch} />
 
-          {streaming && (
-            <span className="flex items-center gap-1.5 text-xs text-muted">
-              <span className="size-1.5 animate-pulse rounded-full bg-accent" />
-              {t("chat.writing")}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" />
-        </svg>
+        {streaming && (
+          <span className="flex items-center gap-1.5 text-xs text-muted">
+            <span className="size-1.5 animate-pulse rounded-full bg-accent" />
+            {t("chat.writing")}
+          </span>
+        )}
       </div>
     </div>
   );
