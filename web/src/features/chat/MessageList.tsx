@@ -108,15 +108,11 @@ function AssistantTurn({ message, text, streaming, siblings, onSelectBranch }: A
   const { t } = useTranslation();
 
   return (
-    <div className="flex gap-3.5">
-      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" />
-        </svg>
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <Markdown>{text}</Markdown>
+    <div className="flex justify-end gap-3">
+      <div className="flex min-w-0 max-w-[85%] flex-col items-end gap-2">
+        <div className="w-full rounded-[14px] rounded-ee-[4px] border border-line bg-raised px-4 py-3">
+          <Markdown>{text}</Markdown>
+        </div>
 
         <div className="flex items-center gap-3.5">
           <BranchSwitcher siblings={siblings} current={message.id} onSelect={onSelectBranch} />
@@ -128,6 +124,12 @@ function AssistantTurn({ message, text, streaming, siblings, onSelectBranch }: A
             </span>
           )}
         </div>
+      </div>
+
+      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" />
+        </svg>
       </div>
     </div>
   );
