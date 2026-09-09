@@ -39,9 +39,24 @@ context window and cost live, which the runner does not know.
 |---|---|---|
 | `OLLAMA_PREFIX` | `~/.local` | where `bin/ollama` and `lib/ollama` are unpacked |
 | `OLLAMA_HOST` | `127.0.0.1:11434` | address the server binds to |
+| `OLLAMA_MODELS` | `~/.ollama/models` | where pulled weights are stored |
 
 `OLLAMA_HOST` and `providers.local.base_url` in the gateway config are two ends
 of the same connection. Changing one means changing the other.
+
+## Where the weights live
+
+Pulled models are written to `$OLLAMA_MODELS` as content-addressed `blobs/`
+plus `manifests/`, and stay there until `ollama rm` removes them. Layers shared
+between two tags are stored once.
+
+On a server this directory is the thing that must survive a redeploy. Inside a
+container it does not, unless a volume is mounted over it, and every restart
+would then re-download several gigabytes.
+
+Disk is not memory: a model is loaded into VRAM or RAM on its first request and
+unloaded again after five minutes idle, so the first request after a pause pays
+the load.
 
 ## Development hardware
 
