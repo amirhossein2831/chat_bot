@@ -54,13 +54,23 @@ func Meta(w http.ResponseWriter, rc *http.ResponseController, messageID string, 
 // cancels the producer: a dropped connection must not destroy a generation that
 // has already been paid for.
 func Pipe(w http.ResponseWriter, r *http.Request, rc *http.ResponseController, deltas <-chan provider.Delta) {
+	terminated := false
+
 	for {
 		select {
 		case <-r.Context().Done():
 			return
 		case delta, ok := <-deltas:
 			if !ok {
+				// A body that stops without a terminal event leaves the client
+				// waiting on an answer that is already over.
+				if !terminated {
+					emit(w, rc, provider.Delta{Type: provider.DeltaDone})
+				}
 				return
+			}
+			if delta.Type != provider.DeltaText {
+				terminated = true
 			}
 			if !emit(w, rc, delta) {
 				return

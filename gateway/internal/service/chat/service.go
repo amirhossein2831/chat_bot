@@ -296,13 +296,13 @@ func (s *Service) consume(
 			if !ok {
 				s.metrics.ObserveStream(assistant.Model, "stopped", time.Since(started))
 				s.finish(persistCtx, stream, assistant, reservation, string(content), nil)
+				stream.publish(provider.Delta{Type: provider.DeltaDone})
 				s.observe(userID, assistant.ID, userText, string(content))
 				return
 			}
-			stream.publish(delta)
-
 			switch delta.Type {
 			case provider.DeltaText:
+				stream.publish(delta)
 				if !firstToken {
 					s.metrics.ObserveFirstToken(assistant.Model, time.Since(started))
 					firstToken = true
@@ -312,7 +312,11 @@ func (s *Service) consume(
 
 			case provider.DeltaDone:
 				s.metrics.ObserveStream(assistant.Model, "complete", time.Since(started))
+				// The row is written before the client is told, because the
+				// client refetches the instant this arrives and one still
+				// marked streaming sends it chasing a generation that is over.
 				s.finish(persistCtx, stream, assistant, reservation, string(content), delta.Usage)
+				stream.publish(delta)
 				s.observe(userID, assistant.ID, userText, string(content))
 				return
 
@@ -327,6 +331,7 @@ func (s *Service) consume(
 				if _, err := s.budget.Settle(persistCtx, reservation, assistant.ID, provider.Usage{}); err != nil {
 					s.log.Error("settle failed", zap.Error(err))
 				}
+				stream.publish(delta)
 				return
 			}
 		}
