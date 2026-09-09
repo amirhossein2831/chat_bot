@@ -246,12 +246,20 @@ func (s *Service) Reattach(messageID uuid.UUID) (<-chan provider.Delta, error) {
 	return stream.Subscribe(), nil
 }
 
-func (s *Service) Stop(messageID uuid.UUID) error {
+// Stop returns once what the generation produced has been persisted, so the
+// caller that reads the conversation next sees the partial answer rather than
+// the empty placeholder it is about to replace.
+func (s *Service) Stop(ctx context.Context, messageID uuid.UUID) error {
 	stream, ok := s.live.get(messageID)
 	if !ok {
 		return constants.ErrNotFound
 	}
 	stream.Stop()
+
+	select {
+	case <-stream.Done():
+	case <-ctx.Done():
+	}
 	return nil
 }
 

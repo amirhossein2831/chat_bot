@@ -16,6 +16,7 @@ const subscriberBuffer = 64
 // whole reply rather than only the remainder.
 type LiveStream struct {
 	cancel context.CancelFunc
+	done   chan struct{}
 
 	mu          sync.Mutex
 	emitted     []provider.Delta
@@ -26,6 +27,7 @@ type LiveStream struct {
 func newLiveStream(cancel context.CancelFunc) *LiveStream {
 	return &LiveStream{
 		cancel:      cancel,
+		done:        make(chan struct{}),
 		subscribers: make(map[chan provider.Delta]struct{}),
 	}
 }
@@ -81,7 +83,12 @@ func (l *LiveStream) close() {
 		close(subscriber)
 	}
 	l.subscribers = nil
+	close(l.done)
 }
+
+// Done is closed once the generation has been written away. Callers that must
+// not observe the message before then wait on it.
+func (l *LiveStream) Done() <-chan struct{} { return l.done }
 
 // Stop cancels the generation. This is the explicit stop button, and it is the
 // only thing that ends a generation early.

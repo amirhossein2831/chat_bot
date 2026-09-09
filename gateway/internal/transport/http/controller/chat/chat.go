@@ -104,7 +104,7 @@ func (c *Controller) Stop(r *http.Request) (*httpio.Response, error) {
 	if err != nil {
 		return nil, constants.ErrBadRequest
 	}
-	if err := c.service.Stop(messageID); err != nil {
+	if err := c.service.Stop(r.Context(), messageID); err != nil {
 		return nil, err
 	}
 	return httpio.NoContent(), nil
