@@ -1,4 +1,4 @@
-package httperr
+package httpio
 
 import (
 	"errors"
@@ -7,9 +7,7 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/constants"
 )
 
-const internalCode = "internal_error"
-
-type Payload struct {
+type errorPayload struct {
 	Error string `json:"error"`
 	Code  string `json:"code"`
 }
@@ -32,11 +30,16 @@ var mappings = []mapping{
 	{constants.ErrContextTooLarge, http.StatusRequestEntityTooLarge, "context_too_large"},
 }
 
-func Map(err error) (int, Payload) {
+const internalCode = "internal_error"
+
+// mapError decides what the client is allowed to see. An unmapped error
+// carries DSNs, table names and upstream detail, so its message is replaced
+// rather than forwarded.
+func mapError(err error) (int, errorPayload) {
 	for _, m := range mappings {
 		if errors.Is(err, m.err) {
-			return m.status, Payload{Error: err.Error(), Code: m.code}
+			return m.status, errorPayload{Error: err.Error(), Code: m.code}
 		}
 	}
-	return http.StatusInternalServerError, Payload{Error: internalCode, Code: internalCode}
+	return http.StatusInternalServerError, errorPayload{Error: internalCode, Code: internalCode}
 }

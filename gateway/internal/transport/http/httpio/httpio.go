@@ -16,8 +16,6 @@ const maxBodyBytes = 1 << 20
 
 var validate = validator.New()
 
-// Handler reads a request and returns what to send. It never receives a
-// ResponseWriter, so it cannot half-write a response or forget to write one.
 type Handler func(*http.Request) (*Response, error)
 
 func Wrap(h Handler) http.HandlerFunc {
