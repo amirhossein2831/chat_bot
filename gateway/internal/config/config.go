@@ -20,11 +20,14 @@ const (
 )
 
 type Config struct {
-	Env      string         `mapstructure:"env"      validate:"required,oneof=local staging production"`
-	HTTP     HTTPConfig     `mapstructure:"http"`
-	Postgres PostgresConfig `mapstructure:"postgres"`
-	Redis    RedisConfig    `mapstructure:"redis"`
-	Auth     AuthConfig     `mapstructure:"auth"`
+	Env       string          `mapstructure:"env"      validate:"required,oneof=local staging production"`
+	HTTP      HTTPConfig      `mapstructure:"http"`
+	Postgres  PostgresConfig  `mapstructure:"postgres"`
+	Redis     RedisConfig     `mapstructure:"redis"`
+	Auth      AuthConfig      `mapstructure:"auth"`
+	Providers ProvidersConfig `mapstructure:"providers"`
+	Relay     RelayConfig     `mapstructure:"relay"`
+	Models    []ModelConfig   `mapstructure:"models"`
 }
 
 func (c Config) IsProduction() bool { return c.Env == EnvProduction }
@@ -37,6 +40,31 @@ type HTTPConfig struct {
 type PostgresConfig struct {
 	DSN      string `mapstructure:"dsn"       validate:"required"`
 	MaxConns int32  `mapstructure:"max_conns" validate:"min=1"`
+}
+
+type ProvidersConfig struct {
+	Local     ProviderConfig `mapstructure:"local"`
+	OpenAI    ProviderConfig `mapstructure:"openai"`
+	Anthropic ProviderConfig `mapstructure:"anthropic"`
+}
+
+type ProviderConfig struct {
+	BaseURL string `mapstructure:"base_url"`
+	APIKey  string `mapstructure:"api_key"`
+}
+
+type RelayConfig struct {
+	Endpoints  []string `mapstructure:"endpoints"`
+	Credential string   `mapstructure:"credential"`
+}
+
+type ModelConfig struct {
+	ID                    string `mapstructure:"id"                          validate:"required"`
+	Provider              string `mapstructure:"provider"                    validate:"required,oneof=local openai anthropic"`
+	Tier                  string `mapstructure:"tier"                        validate:"required,oneof=local frontier"`
+	ContextWindow         int    `mapstructure:"context_window"              validate:"min=1"`
+	CostPer1kInUSDMicros  int64  `mapstructure:"cost_per_1k_in_usd_micros"`
+	CostPer1kOutUSDMicros int64  `mapstructure:"cost_per_1k_out_usd_micros"`
 }
 
 type AuthConfig struct {
@@ -126,4 +154,16 @@ func setDefaults(v *viper.Viper, env string) {
 	v.SetDefault("redis.db", 0)
 
 	v.SetDefault("auth.session_ttl_hours", 720)
+
+	v.SetDefault("providers.local.base_url", "")
+	v.SetDefault("providers.local.api_key", "")
+	v.SetDefault("providers.openai.base_url", "https://api.openai.com")
+	v.SetDefault("providers.openai.api_key", "")
+	v.SetDefault("providers.anthropic.base_url", "https://api.anthropic.com")
+	v.SetDefault("providers.anthropic.api_key", "")
+
+	v.SetDefault("relay.endpoints", []string{})
+	v.SetDefault("relay.credential", "")
+
+	v.SetDefault("models", []ModelConfig{})
 }

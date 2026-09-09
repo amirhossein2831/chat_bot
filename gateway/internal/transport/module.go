@@ -10,6 +10,7 @@ import (
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/auth"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/conversation"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/health"
+	modelctrl "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/controller/model"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/router"
 )
 
@@ -24,6 +25,10 @@ var Module = fx.Module("transport",
 			fx.ResultTags(`group:"routes"`),
 		),
 		fx.Annotate(conversation.NewController,
+			fx.As(new(router.Registrar)),
+			fx.ResultTags(`group:"routes"`),
+		),
+		fx.Annotate(modelctrl.NewController,
 			fx.As(new(router.Registrar)),
 			fx.ResultTags(`group:"routes"`),
 		),
