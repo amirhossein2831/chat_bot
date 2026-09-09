@@ -24,8 +24,6 @@ func New(lc fx.Lifecycle, cfg *config.Config) (*zap.Logger, error) {
 
 	lc.Append(fx.Hook{
 		OnStop: func(context.Context) error {
-			// Sync reports EINVAL on stdout on Linux and macOS; the flush still
-			// happens, so the error is not worth failing shutdown over.
 			_ = log.Sync()
 			return nil
 		},
