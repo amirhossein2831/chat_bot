@@ -5,6 +5,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
+	"go.uber.org/zap"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/infrastructure"
@@ -22,6 +24,10 @@ func options() fx.Option {
 		// away once repositories depend on it.
 		fx.Invoke(func(*http.Server) {}),
 		fx.Invoke(func(*pgxpool.Pool) {}),
+
+		fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
+			return &fxevent.ZapLogger{Logger: log}
+		}),
 	)
 }
 

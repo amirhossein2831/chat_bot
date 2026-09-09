@@ -1,15 +1,15 @@
 package http
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
 	mw "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/middleware"
 )
 
-func NewRouter(log *slog.Logger) *chi.Mux {
+func NewRouter(log *zap.Logger) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(mw.RequestID, mw.Recover(log))
 

@@ -3,13 +3,14 @@ package http_test
 import (
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/constants"
 	httptransport "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http"
@@ -22,7 +23,11 @@ func newTestServer(t *testing.T, logTo io.Writer) *httptest.Server {
 	if logTo == nil {
 		logTo = io.Discard
 	}
-	log := slog.New(slog.NewJSONHandler(logTo, nil))
+	log := zap.New(zapcore.NewCore(
+		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+		zapcore.AddSync(logTo),
+		zapcore.DebugLevel,
+	))
 
 	r := httptransport.NewRouter(log)
 	r.Route("/probe", func(r chi.Router) {

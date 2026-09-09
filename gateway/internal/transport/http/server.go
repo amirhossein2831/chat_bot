@@ -3,17 +3,17 @@ package http
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net"
 	"net/http"
 	"time"
 
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
 )
 
-func NewServer(lc fx.Lifecycle, cfg *config.Config, log *slog.Logger, h http.Handler) *http.Server {
+func NewServer(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger, h http.Handler) *http.Server {
 	srv := &http.Server{
 		Addr:              cfg.HTTP.Addr,
 		Handler:           h,
@@ -32,10 +32,10 @@ func NewServer(lc fx.Lifecycle, cfg *config.Config, log *slog.Logger, h http.Han
 			if err != nil {
 				return err
 			}
-			log.InfoContext(ctx, "http listening", "addr", srv.Addr)
+			log.Info("http listening", zap.String("addr", srv.Addr))
 			go func() {
 				if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					log.Error("http server stopped", "error", err)
+					log.Error("http server stopped", zap.Error(err))
 				}
 			}()
 			return nil

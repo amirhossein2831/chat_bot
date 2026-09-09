@@ -1,16 +1,35 @@
 package logger
 
 import (
-	"log/slog"
-	"os"
+	"context"
+
+	"go.uber.org/fx"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
 )
 
-func New(cfg *config.Config) *slog.Logger {
-	level := slog.LevelDebug
+func New(lc fx.Lifecycle, cfg *config.Config) (*zap.Logger, error) {
+	zc := zap.NewDevelopmentConfig()
 	if cfg.IsProduction() {
-		level = slog.LevelInfo
+		zc = zap.NewProductionConfig()
+		zc.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	}
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+
+	log, err := zc.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStop: func(context.Context) error {
+			// Sync reports EINVAL on stdout on Linux and macOS; the flush still
+			// happens, so the error is not worth failing shutdown over.
+			_ = log.Sync()
+			return nil
+		},
+	})
+
+	return log, nil
 }
