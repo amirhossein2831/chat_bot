@@ -12,6 +12,7 @@ import (
 	redisrepo "github.com/amirhossein2831/chat_bot/gateway/internal/repository/redis"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/service/conversation"
+	"github.com/amirhossein2831/chat_bot/gateway/internal/service/quota"
 )
 
 var Module = fx.Module("repository",
@@ -31,6 +32,16 @@ var Module = fx.Module("repository",
 				return pgrepo.NewConversationRepository(db)
 			},
 			fx.As(new(conversation.Repository)),
+		),
+		fx.Annotate(
+			func(db *pgxpool.Pool) *pgrepo.UsageRepository { return pgrepo.NewUsageRepository(db) },
+			fx.As(new(quota.Ledger)),
+		),
+		fx.Annotate(
+			func(client *redis.Client) *redisrepo.QuotaRepository {
+				return redisrepo.NewQuotaRepository(client)
+			},
+			fx.As(new(quota.Counters)),
 		),
 	),
 )

@@ -15,10 +15,11 @@ import (
 const probeInterval = 30 * time.Second
 
 type Registry struct {
-	byModel   map[string]provider.Provider
-	models    []provider.ModelInfo
-	providers map[string]provider.Provider
-	log       *zap.Logger
+	byModel       map[string]provider.Provider
+	providerNames map[string]string
+	models        []provider.ModelInfo
+	providers     map[string]provider.Provider
+	log           *zap.Logger
 
 	mu        sync.RWMutex
 	available map[string]bool
@@ -26,9 +27,11 @@ type Registry struct {
 
 func New(log *zap.Logger, providers map[string]provider.Provider, models []provider.ModelInfo) *Registry {
 	byModel := make(map[string]provider.Provider, len(models))
+	providerNames := make(map[string]string, len(models))
 	available := make(map[string]bool, len(providers))
 
 	for _, m := range models {
+		providerNames[m.ID] = m.Provider
 		if p, ok := providers[m.Provider]; ok {
 			byModel[m.ID] = p
 		}
@@ -38,11 +41,12 @@ func New(log *zap.Logger, providers map[string]provider.Provider, models []provi
 	}
 
 	return &Registry{
-		byModel:   byModel,
-		models:    models,
-		providers: providers,
-		log:       log,
-		available: available,
+		byModel:       byModel,
+		providerNames: providerNames,
+		models:        models,
+		providers:     providers,
+		log:           log,
+		available:     available,
 	}
 }
 
@@ -85,7 +89,7 @@ func (r *Registry) route(modelID string) (provider.Provider, error) {
 		return nil, fmt.Errorf("%w: unknown model %q", constants.ErrModelUnavailable, modelID)
 	}
 
-	name := r.providerName(modelID)
+	name := r.providerNames[modelID]
 	r.mu.RLock()
 	up := r.available[name]
 	r.mu.RUnlock()
@@ -94,15 +98,6 @@ func (r *Registry) route(modelID string) (provider.Provider, error) {
 		return nil, fmt.Errorf("%w: %s is unreachable", constants.ErrModelUnavailable, name)
 	}
 	return target, nil
-}
-
-func (r *Registry) providerName(modelID string) string {
-	for _, m := range r.models {
-		if m.ID == modelID {
-			return m.Provider
-		}
-	}
-	return ""
 }
 
 // Probe checks every provider concurrently. A local provider failing must not
