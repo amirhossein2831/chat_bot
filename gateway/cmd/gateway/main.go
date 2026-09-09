@@ -7,6 +7,7 @@ import (
 	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
 
+	"github.com/amirhossein2831/chat_bot/gateway/internal/client"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/infrastructure"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/repository"
@@ -18,6 +19,7 @@ func options() fx.Option {
 	return fx.Options(
 		config.Module,
 		infrastructure.Module,
+		client.Module,
 		repository.Module,
 		service.Module,
 		transport.Module,
