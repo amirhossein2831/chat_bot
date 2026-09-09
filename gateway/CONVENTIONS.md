@@ -78,6 +78,17 @@ Mapping exists in exactly two places and nowhere else:
   upstream provider detail to a client.
 - Ownership is enforced in the SQL `WHERE` clause, not in the service. A missed
   check in a service is an IDOR; a missed join returns zero rows.
+- **Mapper direction is decided by the service, not by the mapper.** The mapper
+  converts to whatever the service's signature takes and from whatever it
+  returns, so there is never a choice between model and domain to agonise over.
+  A service with several non-entity inputs declares its own command struct in
+  its own package.
+- **`domain` <-> `model` conversion is not mapping, it is construction**, and it
+  lives in `domain` as a constructor (`domain.ThreadFrom`). Putting it in the
+  transport mapper would make repositories import transport.
+- Name the target in the mapper function: `ToUserModel`, `ToSendCommand`,
+  `ToUserResponse`. Mappers move fields and nothing else; validation or
+  computation belongs in `model` or `domain`.
 - **DRY.** Every rule has one home. Error-to-status mapping lives in one file,
   Persian normalisation in one function, a config key in one struct field, a
   wire format in one client package. If you are about to copy a second copy of

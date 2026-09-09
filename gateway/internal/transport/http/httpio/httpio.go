@@ -2,6 +2,7 @@ package httpio
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,7 +26,7 @@ func Wrap(h Handler) http.HandlerFunc {
 			return
 		}
 		if res == nil {
-			Error(w, fmt.Errorf("handler returned no response"))
+			Error(w, errors.New("handler returned no response"))
 			return
 		}
 		res.write(w)
@@ -40,7 +41,7 @@ func Decode(r *http.Request, target any) error {
 	}
 
 	if err := validate.Struct(target); err != nil {
-		return fmt.Errorf("%w: %s", constants.ErrBadRequest, err)
+		return err
 	}
 	return nil
 }

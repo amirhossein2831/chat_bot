@@ -1,13 +1,14 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"runtime/debug"
 
 	"go.uber.org/zap"
 )
 
-func Recover(log *zap.Logger) func(http.Handler) http.Handler {
+func Recover(log *zap.Logger, writeErr func(http.ResponseWriter, error)) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
@@ -21,7 +22,7 @@ func Recover(log *zap.Logger) func(http.Handler) http.Handler {
 					zap.String("method", r.Method),
 					zap.String("path", r.URL.Path),
 					zap.ByteString("stack", debug.Stack()))
-				w.WriteHeader(http.StatusInternalServerError)
+				writeErr(w, errors.New("panic"))
 			}()
 			next.ServeHTTP(w, r)
 		})

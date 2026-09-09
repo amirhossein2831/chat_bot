@@ -8,6 +8,7 @@ var (
 	ErrForbidden         = errors.New("forbidden")
 	ErrConflict          = errors.New("conflict")
 	ErrBadRequest        = errors.New("bad request")
+	ErrMethodNotAllowed  = errors.New("method not allowed")
 	ErrQuotaExceeded     = errors.New("quota exceeded")
 	ErrModelUnavailable  = errors.New("model unavailable")
 	ErrInvalidTransition = errors.New("invalid state transition")
