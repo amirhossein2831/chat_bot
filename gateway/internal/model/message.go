@@ -31,7 +31,7 @@ type Message struct {
 	CreatedAt      time.Time     `db:"created_at"`
 }
 
-func (m Message) IsTerminal() bool { return m.Status.Terminal() }
+func (m *Message) IsTerminal() bool { return m.Status.Terminal() }
 
 // Quota is settled from this transition, so a second one would double-debit.
 func (m *Message) MarkComplete(u Usage) error {

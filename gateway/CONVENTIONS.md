@@ -74,6 +74,11 @@ Mapping exists in exactly two places and nowhere else:
 - Ownership is enforced in the SQL `WHERE` clause, not in the service. A missed
   check in a service is an IDOR; a missed join returns zero rows.
 - Accept interfaces, return structs.
+- **One receiver kind per type.** If any method mutates, every method on
+  that type takes a pointer. Mixing them keeps the value out of its own
+  method set, so `model.Message` would silently fail to satisfy an
+  interface that `*model.Message` satisfies. Types with no mutating
+  methods use value receivers throughout.
 - No interface until there are two reasons for it: a real second
   implementation, or a test that genuinely needs a double.
 - Packages are named for the domain, never the layer. No `utils`.
