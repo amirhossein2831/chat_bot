@@ -19,11 +19,8 @@ func NewServer(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger, h http.Hand
 		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
-		// WriteTimeout must stay 0: it bounds the whole response, so any value
-		// silently truncates SSE streams that outlive it. Per-write deadlines
-		// are set by the SSE writer instead.
-		WriteTimeout: 0,
-		IdleTimeout:  120 * time.Second,
+		WriteTimeout:      0,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	lc.Append(fx.Hook{

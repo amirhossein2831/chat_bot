@@ -1,11 +1,11 @@
-package controller
+package auth
 
 import (
 	"net/http"
 	"time"
 
 	"github.com/amirhossein2831/chat_bot/gateway/internal/config"
-	"github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
+	authservice "github.com/amirhossein2831/chat_bot/gateway/internal/service/auth"
 	httptransport "github.com/amirhossein2831/chat_bot/gateway/internal/transport/http"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/dto"
 	"github.com/amirhossein2831/chat_bot/gateway/internal/transport/http/mapper"
@@ -14,23 +14,23 @@ import (
 
 const sessionCookie = "session"
 
-type Auth struct {
-	service *auth.Service
+type Controller struct {
+	service *authservice.Service
 	secure  bool
 	ttl     time.Duration
 }
 
-func NewAuth(service *auth.Service, cfg *config.Config) *Auth {
-	return &Auth{
+func NewController(service *authservice.Service, cfg *config.Config) *Controller {
+	return &Controller{
 		service: service,
 		secure:  cfg.IsProduction(),
 		ttl:     cfg.Auth.SessionTTL(),
 	}
 }
 
-func (c *Auth) Register(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) Register(w http.ResponseWriter, r *http.Request) {
 	var req dto.RegisterRequest
-	if err := decode(w, r, &req); err != nil {
+	if err := httptransport.Decode(w, r, &req); err != nil {
 		httptransport.WriteError(w, err)
 		return
 	}
@@ -44,9 +44,9 @@ func (c *Auth) Register(w http.ResponseWriter, r *http.Request) {
 	httptransport.WriteJSON(w, http.StatusCreated, mapper.ToUserResponse(user))
 }
 
-func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
-	if err := decode(w, r, &req); err != nil {
+	if err := httptransport.Decode(w, r, &req); err != nil {
 		httptransport.WriteError(w, err)
 		return
 	}
@@ -61,7 +61,7 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 	httptransport.WriteJSON(w, http.StatusOK, mapper.ToUserResponse(user))
 }
 
-func (c *Auth) Logout(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) Logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(sessionCookie); err == nil {
 		if err := c.service.Logout(r.Context(), cookie.Value); err != nil {
 			httptransport.WriteError(w, err)
@@ -73,11 +73,11 @@ func (c *Auth) Logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (c *Auth) Me(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) Me(w http.ResponseWriter, r *http.Request) {
 	httptransport.WriteJSON(w, http.StatusOK, mapper.ToUserResponse(mw.UserFrom(r.Context())))
 }
 
-func (c *Auth) cookie(value string, ttl time.Duration) *http.Cookie {
+func (c *Controller) cookie(value string, ttl time.Duration) *http.Cookie {
 	return &http.Cookie{
 		Name:     sessionCookie,
 		Value:    value,

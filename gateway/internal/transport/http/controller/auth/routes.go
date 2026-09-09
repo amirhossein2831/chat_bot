@@ -1,8 +1,8 @@
-package controller
+package auth
 
 import "github.com/go-chi/chi/v5"
 
-func (c *Auth) Routes(public, protected chi.Router) {
+func (c *Controller) Routes(public, protected chi.Router) {
 	public.Post("/auth/register", c.Register)
 	public.Post("/auth/login", c.Login)
 

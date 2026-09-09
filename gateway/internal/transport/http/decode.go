@@ -1,4 +1,4 @@
-package controller
+package http
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ const maxBodyBytes = 1 << 20
 
 var validate = validator.New()
 
-func decode(w http.ResponseWriter, r *http.Request, target any) error {
+func Decode(w http.ResponseWriter, r *http.Request, target any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 
 	dec := json.NewDecoder(r.Body)
