@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 import { LoginPage } from "../features/auth/LoginPage";
+import { ChatPage } from "../features/chat/ChatPage";
 import { RequireAuth } from "../features/auth/RequireAuth";
 import { AppLayout } from "./AppLayout";
 
@@ -15,7 +16,7 @@ const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Placeholder /> },
-      { path: "c/:id", element: <Placeholder /> },
+      { path: "c/:id", element: <ChatPage /> },
       { path: "prompts", element: <Placeholder /> },
       { path: "memory", element: <Placeholder /> },
     ],
