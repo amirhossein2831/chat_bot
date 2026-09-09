@@ -23,6 +23,10 @@ export default tseslint.config(
 
       // Physical properties break RTL. Retrofitting logical ones later is
       // miserable, so they are refused from the first commit.
+      // The normaliser strips combining marks deliberately, one codepoint at a
+      // time. Written as escapes, that is exactly what this option permits.
+      "no-misleading-character-class": ["error", { allowEscape: true }],
+
       "no-restricted-syntax": [
         "error",
         {
