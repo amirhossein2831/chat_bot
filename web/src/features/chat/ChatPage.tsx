@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -100,7 +100,16 @@ export function ChatPage() {
 
   // Reset and pending-send must happen in one effect and in this order.
   // Split across two, the reset aborted the send that had just started.
+  //
+  // Entering twice for one conversation must do nothing the second time: the
+  // reset would abort the send the first pass had just begun, and the send
+  // would run again, asking for two answers to one question.
+  const entered = useRef<string | null>(null);
+
   useEffect(() => {
+    if (entered.current === id) return;
+    entered.current = id;
+
     stream.reset();
 
     const state = location.state as PendingSend | null;
@@ -156,11 +165,16 @@ export function ChatPage() {
   // path, so nothing here could work them out on its own.
   const siblingsOf = (message: Message) => message.siblings;
 
-  // Whether the server's own copy of this turn has been fetched yet. Matching
-  // on content instead would hide a message identical to the one before it.
-  const confirmed = stream.sentAt !== null && dataUpdatedAt > stream.sentAt;
-
   const thread = messages ?? [];
+
+  // Whether the server's own copy of this turn is in hand, judged by the id it
+  // named rather than by content or timing. Content would hide a message
+  // identical to the one before it, and timing counts the first fetch of a new
+  // conversation, which lands before the turn exists and leaves the thread
+  // empty for as long as the model takes to answer.
+  const arrived = stream.messageId !== null && thread.some((m) => m.id === stream.messageId);
+  const abandoned = !stream.streaming && stream.sentAt !== null && dataUpdatedAt > stream.sentAt;
+  const confirmed = arrived || abandoned;
   const shown =
     stream.sent === null || stream.sentAt === null || confirmed
       ? thread
