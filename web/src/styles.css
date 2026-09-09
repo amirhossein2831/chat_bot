@@ -23,15 +23,24 @@
   --font-sans: "Vazirmatn", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  --color-paper: oklch(0.985 0.005 85);
-  --color-surface: oklch(1 0 0);
-  --color-raised: oklch(0.968 0.007 85);
-  --color-ink: oklch(0.26 0.012 60);
-  --color-muted: oklch(0.6 0.012 60);
-  --color-line: oklch(0.925 0.006 85);
-  --color-accent: oklch(0.62 0.11 195);
-  --color-accent-soft: oklch(0.945 0.028 195);
-  --color-ok: oklch(0.68 0.13 150);
+  --color-paper: oklch(1 0 0);
+  --color-surface: oklch(0.978 0.002 250);
+  --color-raised: oklch(0.966 0.003 250);
+  --color-ink: oklch(0.21 0.006 250);
+  --color-muted: oklch(0.55 0.008 250);
+  --color-line: oklch(0.918 0.004 250);
+  --color-accent: oklch(0.58 0.13 195);
+  --color-accent-soft: oklch(0.955 0.025 195);
+  --color-ok: oklch(0.66 0.14 150);
+
+  --radius-field: 12px;
+  --radius-card: 18px;
+  --radius-bubble: 20px;
+
+  --shadow-soft: 0 1px 2px oklch(0.21 0.006 250 / 0.04),
+    0 6px 20px -6px oklch(0.21 0.006 250 / 0.1);
+  --shadow-lift: 0 2px 4px oklch(0.21 0.006 250 / 0.05),
+    0 12px 32px -10px oklch(0.21 0.006 250 / 0.16);
 }
 
 /* Dark follows the OS and browser, with no in-app control: one setting the
@@ -39,15 +48,18 @@
    chroma so the accent stays recognisably the same turquoise. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-paper: oklch(0.185 0.008 60);
-    --color-surface: oklch(0.225 0.008 60);
-    --color-raised: oklch(0.21 0.008 60);
-    --color-ink: oklch(0.93 0.008 85);
-    --color-muted: oklch(0.68 0.01 60);
-    --color-line: oklch(0.3 0.008 60);
-    --color-accent: oklch(0.72 0.11 195);
-    --color-accent-soft: oklch(0.31 0.045 195);
-    --color-ok: oklch(0.74 0.13 150);
+    --color-paper: oklch(0.175 0.005 250);
+    --color-surface: oklch(0.215 0.006 250);
+    --color-raised: oklch(0.246 0.007 250);
+    --color-ink: oklch(0.945 0.004 250);
+    --color-muted: oklch(0.68 0.008 250);
+    --color-line: oklch(0.298 0.007 250);
+    --color-accent: oklch(0.76 0.12 195);
+    --color-accent-soft: oklch(0.3 0.045 195);
+    --color-ok: oklch(0.76 0.13 150);
+
+    --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.3), 0 6px 20px -6px oklch(0 0 0 / 0.45);
+    --shadow-lift: 0 2px 4px oklch(0 0 0 / 0.35), 0 12px 32px -10px oklch(0 0 0 / 0.55);
   }
 }
 
@@ -73,12 +85,24 @@ code {
   text-align: left;
 }
 
+/* A scrollbar that only shows itself once there is a reason to. */
 ::-webkit-scrollbar {
   width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-line);
+  background: transparent;
+  border: 3px solid transparent;
+  background-clip: content-box;
   border-radius: 99px;
+}
+:hover::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+  background-clip: content-box;
 }
 
 @keyframes turn-in {
@@ -133,4 +157,68 @@ code {
   .caret > div > *:last-child::after {
     animation: none;
   }
+}
+
+/* Answer typography. Written here rather than as utilities on the renderer
+   because these elements come from the markdown, not from JSX. */
+.prose-chat :is(ul, ol) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-inline-start: 1.5rem;
+  margin: 0;
+}
+.prose-chat ul {
+  list-style: disc;
+}
+.prose-chat ol {
+  list-style: decimal;
+}
+.prose-chat :is(h1, h2, h3) {
+  margin: 0.4rem 0 0;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.prose-chat h1 {
+  font-size: 1.32em;
+}
+.prose-chat h2 {
+  font-size: 1.18em;
+}
+.prose-chat h3 {
+  font-size: 1.06em;
+}
+.prose-chat blockquote {
+  margin: 0;
+  padding-inline-start: 1rem;
+  border-inline-start: 2px solid var(--color-line);
+  color: var(--color-muted);
+}
+.prose-chat :not(pre) > code {
+  padding: 0.12em 0.38em;
+  border-radius: 6px;
+  background: var(--color-raised);
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+.prose-chat table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.94em;
+}
+.prose-chat :is(th, td) {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-line);
+  text-align: start;
+}
+.prose-chat th {
+  background: var(--color-raised);
+  font-weight: 600;
+}
+.prose-chat hr {
+  width: 100%;
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--color-line);
 }

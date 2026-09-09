@@ -10,7 +10,7 @@ function balanceFences(markdown: string): string {
 
 export function Markdown({ children }: { children: string }) {
   return (
-    <div className="flex flex-col gap-3 text-[15px] [&_ol]:flex [&_ol]:list-decimal [&_ol]:flex-col [&_ol]:gap-2 [&_ol]:ps-6 [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-2 [&_ul]:ps-6">
+    <div className="prose-chat flex flex-col gap-4 leading-[1.75]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -18,7 +18,7 @@ export function Markdown({ children }: { children: string }) {
           pre: ({ children }) => (
             <pre
               dir="ltr"
-              className="overflow-x-auto rounded-[10px] border border-line bg-raised p-3.5 font-mono text-[12.5px] leading-relaxed"
+              className="overflow-x-auto rounded-[14px] bg-raised p-4 font-mono text-[13px] leading-relaxed"
             >
               {children}
             </pre>

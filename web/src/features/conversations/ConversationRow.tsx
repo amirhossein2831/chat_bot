@@ -2,8 +2,6 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
 
-import { useUiStore } from "../../app/store";
-import { formatRelative } from "../../lib/format";
 import type { Conversation } from "./conversationsApi";
 import { useArchiveConversation, useRenameConversation } from "./useConversations";
 
@@ -14,8 +12,6 @@ type Props = {
 
 export function ConversationRow({ conversation, onOpen }: Props) {
   const { t } = useTranslation();
-  const locale = useUiStore((state) => state.locale);
-
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [title, setTitle] = useState(conversation.title);
@@ -47,7 +43,7 @@ export function ConversationRow({ conversation, onOpen }: Props) {
             setRenaming(false);
           }
         }}
-        className="h-11 w-full rounded-[9px] border border-accent bg-surface px-2.5 text-[13.5px] outline-none md:h-10"
+        className="h-10 w-full rounded-[12px] bg-raised px-3 text-[14px] outline-none ring-2 ring-accent"
       />
     );
   }
@@ -61,20 +57,15 @@ export function ConversationRow({ conversation, onOpen }: Props) {
           [
             // min-w-0 lets the title truncate: without it this item refuses to
             // shrink below its text and a long title scrolls the sidebar.
-            "flex min-h-11 min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-[9px] px-2.5 py-2 pe-9 md:min-h-0",
-            isActive
-              ? "bg-surface shadow-[inset_0_0_0_1px_var(--color-accent-soft)]"
-              : "hover:bg-surface/60",
+            "flex h-10 min-w-0 flex-1 items-center rounded-[12px] px-3 pe-9 transition-colors duration-150",
+            isActive ? "bg-raised font-medium" : "hover:bg-raised/70",
           ].join(" ")
         }
       >
         {/* dir="auto" so an English title truncates at its own end: laid out
             RTL it would be clipped at the front and show only its tail. */}
-        <span dir="auto" className="truncate text-[13.5px]">
+        <span dir="auto" className="truncate text-[14px]">
           {conversation.title || t("nav.newChat")}
-        </span>
-        <span className="text-xs text-muted">
-          {formatRelative(conversation.createdAt, locale)}
         </span>
       </NavLink>
 
@@ -83,7 +74,7 @@ export function ConversationRow({ conversation, onOpen }: Props) {
         onClick={() => setMenuOpen((current) => !current)}
         aria-label={t("conversation.menu")}
         // Always reachable on touch, where there is no hover to reveal it.
-        className="absolute end-1 flex size-8 items-center justify-center rounded-md text-muted opacity-100 hover:bg-line/60 lg:opacity-0 lg:group-hover:opacity-100"
+        className="absolute end-1.5 flex size-7 items-center justify-center rounded-lg text-muted transition hover:bg-line/70 lg:opacity-0 lg:group-hover:opacity-100"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
           <circle cx="12" cy="5" r="1.6" />
@@ -101,14 +92,14 @@ export function ConversationRow({ conversation, onOpen }: Props) {
             onClick={() => setMenuOpen(false)}
             className="fixed inset-0 z-10"
           />
-          <div className="absolute top-full z-20 mt-1 flex w-40 flex-col rounded-lg border border-line bg-surface p-1 shadow-lg end-1">
+          <div className="absolute top-full z-20 mt-1 flex w-40 flex-col rounded-[14px] bg-paper p-1.5 shadow-[var(--shadow-lift)] end-1.5">
             <button
               type="button"
               onClick={() => {
                 setMenuOpen(false);
                 setRenaming(true);
               }}
-              className="rounded-md px-3 py-2 text-start text-[13px] hover:bg-raised"
+              className="rounded-[9px] px-3 py-2 text-start text-[13.5px] transition hover:bg-raised"
             >
               {t("conversation.rename")}
             </button>
@@ -118,7 +109,7 @@ export function ConversationRow({ conversation, onOpen }: Props) {
                 setMenuOpen(false);
                 archive.mutate(conversation.id);
               }}
-              className="rounded-md px-3 py-2 text-start text-[13px] text-red-600 hover:bg-raised dark:text-red-400"
+              className="rounded-[9px] px-3 py-2 text-start text-[13.5px] text-red-600 transition hover:bg-raised dark:text-red-400"
             >
               {t("conversation.delete")}
             </button>

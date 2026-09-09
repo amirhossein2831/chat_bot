@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { useUiStore } from "../../app/store";
-import { useCreateConversation } from "../conversations/useConversations";
+import { useConversations, useCreateConversation } from "../conversations/useConversations";
 import { useUpload } from "../files/useUpload";
 import type { Message } from "./chatApi";
 import { Composer } from "./Composer";
@@ -81,6 +81,8 @@ export function ChatPage() {
   const [model, setModel] = useState("");
 
   const { data: messages, refetch, dataUpdatedAt } = useThread(id);
+  const { data: conversations } = useConversations("");
+  const conversation = conversations?.find((item) => item.id === id);
   const switchBranch = useSwitchBranch(id);
   const create = useCreateConversation();
   const uploads = useUpload();
@@ -170,23 +172,27 @@ export function ChatPage() {
 
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line px-4 md:px-7">
+      <header className="flex h-[58px] shrink-0 items-center gap-3 px-3 md:px-5">
         <button
           type="button"
           onClick={() => setSidebarOpen(true)}
           aria-label={t("nav.newChat")}
-          className="-ms-2 flex size-11 items-center justify-center rounded-lg text-muted lg:hidden"
+          className="flex size-10 items-center justify-center rounded-[12px] text-muted transition hover:bg-surface lg:hidden"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
 
-        <span className="min-w-0 truncate text-[14.5px] font-semibold">{t("app.name")}</span>
+        {/* The sidebar already carries the product name; repeating it here
+            costs the one line that says which conversation this is. */}
+        {/* bdi, not dir="auto": the title must isolate its own direction while
+            still being aligned by the interface's. */}
+        <span className="min-w-0 flex-1 truncate text-start text-[14px] font-medium text-muted">
+          <bdi>{conversation?.title}</bdi>
+        </span>
 
-        <div className="ms-auto">
-          <ModelPicker value={chosenModel} onChange={setModel} />
-        </div>
+        <ModelPicker value={chosenModel} onChange={setModel} />
       </header>
 
       {stream.failed && (
@@ -215,14 +221,9 @@ export function ChatPage() {
       )}
 
       {empty ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-accent-soft">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
-              <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" />
-            </svg>
-          </div>
-          <h1 className="m-0 text-xl font-semibold">{t("empty.title")}</h1>
-          <p className="m-0 max-w-[46ch] text-sm text-muted">{t("empty.subtitle")}</p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2.5 px-6 pb-10 text-center">
+          <h1 className="m-0 text-[26px] font-semibold tracking-tight">{t("empty.title")}</h1>
+          <p className="m-0 max-w-[46ch] text-[14.5px] text-muted">{t("empty.subtitle")}</p>
         </div>
       ) : (
         <MessageList

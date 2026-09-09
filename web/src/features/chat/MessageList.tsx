@@ -84,9 +84,9 @@ export function MessageList({
       // A column, not a row: stretched by a row container the thread would be
       // locked to the viewport height and merely overflow it, so nothing
       // observing it would ever see the answer grow.
-      className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4 pt-6 md:px-7"
+      className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4 pt-4 md:px-7"
     >
-      <div ref={content} className="flex w-full max-w-[720px] flex-col gap-6 pb-4">
+      <div ref={content} className="flex w-full max-w-[736px] flex-col gap-7 pb-6">
         {truncated && <Notice>{t("chat.truncated")}</Notice>}
         {reconnecting && <Notice>{t("chat.reconnecting")}</Notice>}
         {failed && <Notice tone="error">{t("chat.failed")}</Notice>}
@@ -138,10 +138,10 @@ function Notice({ children, tone }: { children: React.ReactNode; tone?: "error" 
   return (
     <div
       className={[
-        "flex items-center gap-2.5 self-center rounded-full px-3.5 py-1.5 text-xs",
+        "flex items-center gap-2 self-center rounded-full px-3 py-1.5 text-xs",
         tone === "error"
           ? "bg-red-500/10 text-red-600 dark:text-red-400"
-          : "bg-line/60 text-muted",
+          : "bg-raised text-muted",
       ].join(" ")}
     >
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -156,7 +156,9 @@ function Notice({ children, tone }: { children: React.ReactNode; tone?: "error" 
 function UserTurn({ message }: { message: Message }) {
   return (
     <div dir="ltr" className="turn-in flex justify-end">
-      <div className="max-w-[85%] rounded-[16px] rounded-ee-[5px] bg-accent-soft px-4 py-2.5 text-[15px]">
+      {/* Neutral, not accent-tinted: reserving colour for actions is what
+          keeps a long thread calm to read. */}
+      <div className="max-w-[82%] rounded-[var(--radius-bubble)] rounded-ee-[7px] bg-raised px-4 py-2.5 text-[15.5px] leading-[1.7]">
         <div dir="auto" className="whitespace-pre-wrap">
           {message.content}
         </div>
@@ -179,7 +181,7 @@ function AssistantTurn({ message, text, streaming, siblings, onSelectBranch }: A
   return (
     <div
       dir="auto"
-      className={["turn-in flex flex-col gap-3", streaming && text ? "caret" : ""].join(" ")}
+      className={["turn-in flex flex-col gap-3 text-[15.5px]", streaming && text ? "caret" : ""].join(" ")}
     >
       {streaming && !text ? <Thinking /> : <Markdown>{text}</Markdown>}
 

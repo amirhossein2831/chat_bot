@@ -97,5 +97,11 @@
     "menu": "Options",
     "rename": "Rename",
     "delete": "Delete chat"
+  },
+  "history": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "week": "Previous 7 days",
+    "older": "Older"
   }
 }
