@@ -53,20 +53,26 @@ export function ConversationRow({ conversation, onOpen }: Props) {
   }
 
   return (
-    <div className="group relative flex items-center">
+    <div className="group relative flex min-w-0 items-center">
       <NavLink
         to={`/c/${conversation.id}`}
         onClick={onOpen}
         className={({ isActive }) =>
           [
-            "flex min-h-11 flex-1 flex-col justify-center gap-0.5 rounded-[9px] px-2.5 py-2 pe-9 md:min-h-0",
+            // min-w-0 lets the title truncate: without it this item refuses to
+            // shrink below its text and a long title scrolls the sidebar.
+            "flex min-h-11 min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-[9px] px-2.5 py-2 pe-9 md:min-h-0",
             isActive
               ? "bg-surface shadow-[inset_0_0_0_1px_var(--color-accent-soft)]"
               : "hover:bg-surface/60",
           ].join(" ")
         }
       >
-        <span className="truncate text-[13.5px]">{conversation.title || t("nav.newChat")}</span>
+        {/* dir="auto" so an English title truncates at its own end: laid out
+            RTL it would be clipped at the front and show only its tail. */}
+        <span dir="auto" className="truncate text-[13.5px]">
+          {conversation.title || t("nav.newChat")}
+        </span>
         <span className="text-xs text-muted">
           {formatRelative(conversation.createdAt, locale)}
         </span>

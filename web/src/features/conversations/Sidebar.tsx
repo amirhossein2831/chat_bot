@@ -84,7 +84,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 pb-4">
+      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-2.5 pb-4">
         {debounced && (
           <span className="px-2 pt-2 pb-1 text-[11.5px] font-semibold text-muted">
             {t("search.results", { count: conversations?.length ?? 0 })}
