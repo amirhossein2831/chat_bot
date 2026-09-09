@@ -103,7 +103,7 @@ export function ModelPicker({ value, onChange }: Props) {
                           provider={group.provider}
                           className={[
                             "size-[18px] shrink-0",
-                            group.available > 0 ? "" : "text-muted",
+                            group.available > 0 ? "" : "opacity-40",
                           ].join(" ")}
                         />
                       }
