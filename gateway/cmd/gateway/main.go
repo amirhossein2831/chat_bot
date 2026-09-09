@@ -13,8 +13,6 @@ func options() fx.Option {
 		config.Module,
 		postgres.Module,
 
-		// fx constructs lazily; without these nothing is built and a broken
-		// config or unreachable database never surfaces.
 		fx.Invoke(func(*config.Config) {}),
 		fx.Invoke(func(*pgxpool.Pool) {}),
 	)
