@@ -29,6 +29,14 @@ services:
     ports: ["9000:9000", "9001:9001"]
     volumes: ["miniodata:/data"]
 
+  ocr:
+    build:
+      context: ../ocr
+      dockerfile: build/package/ocr.Dockerfile
+    environment:
+      OCR_RECOGNIZER: surya
+    ports: ["8100:8100"]
+
   gateway:
     build:
       context: ../gateway
@@ -40,10 +48,12 @@ services:
       APP_REDIS_ADDR: "redis:6379"
       APP_OBJECTS_ENDPOINT: "minio:9000"
       APP_PROVIDERS_LOCAL_BASE_URL: "http://vllm:8000"
+      APP_OCR_BASE_URL: "http://ocr:8100"
     ports: ["8080:8080"]
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+      ocr: { condition: service_started }
 
   web:
     build:
