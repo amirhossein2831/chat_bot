@@ -37,6 +37,13 @@ type Budget interface {
 	Release(ctx context.Context, r quota.Reservation) error
 }
 
+// Documents is the file service. Declared here because this is what needs it.
+type Documents interface {
+	Attach(ctx context.Context, ids []uuid.UUID, messageID, userID uuid.UUID) error
+	TextFor(ctx context.Context, ids []uuid.UUID, userID uuid.UUID) ([]string, error)
+	TextOf(ctx context.Context, messageID uuid.UUID) ([]string, error)
+}
+
 type Recaller interface {
 	Context(ctx context.Context, userID uuid.UUID) (domain.MemoryContext, error)
 }

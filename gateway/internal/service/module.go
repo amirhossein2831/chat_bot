@@ -48,12 +48,13 @@ var Module = fx.Module("service",
 			registry *registry.Registry,
 			catalogueService *catalogue.Service,
 			budget *quota.Service,
+			fileService *files.Service,
 			memoryService *memory.Service,
 			metrics *observability.Metrics,
 			log *zap.Logger,
 		) *chat.Service {
 			return chat.NewService(conversations, registry, catalogueService, budget,
-				memoryService, memoryService, metrics, log)
+				fileService, memoryService, memoryService, metrics, log)
 		},
 		func(r *registry.Registry) *catalogue.Service { return catalogue.NewService(r) },
 		fx.Annotate(func(s *auth.Service) *auth.Service { return s }, fx.As(new(mw.Authenticator))),

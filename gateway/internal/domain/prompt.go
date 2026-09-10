@@ -30,7 +30,12 @@ type PromptContext struct {
 	truncated bool
 }
 
-func BuildPrompt(thread Thread, memory MemoryContext, input model.Message) PromptContext {
+func BuildPrompt(
+	thread Thread,
+	memory MemoryContext,
+	documents []string,
+	input model.Message,
+) PromptContext {
 	var system strings.Builder
 	system.WriteString(baseSystemPrompt)
 
@@ -41,6 +46,14 @@ func BuildPrompt(thread Thread, memory MemoryContext, input model.Message) Promp
 	if facts := truncate(strings.Join(memory.Facts, "\n"), maxFactChars); facts != "" {
 		system.WriteString("\n\nKnown about the user:\n")
 		system.WriteString(facts)
+	}
+
+	// Documents sit in the system section rather than in the turn, so that what
+	// is stored as the user's message stays what they typed. Each arrives
+	// already wrapped as data the model must not take instructions from.
+	for _, document := range documents {
+		system.WriteString("\n\n")
+		system.WriteString(document)
 	}
 
 	messages := make([]model.Message, 0, len(thread.Messages)+1)

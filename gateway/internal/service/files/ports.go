@@ -16,6 +16,9 @@ type Repository interface {
 	GetOwned(ctx context.Context, id, userID uuid.UUID) (model.Attachment, error)
 	SetStatus(ctx context.Context, id uuid.UUID, status model.ExtractionStatus, textKey, failure *string) error
 	CountToday(ctx context.Context, userID uuid.UUID) (int, error)
+	Attach(ctx context.Context, ids []uuid.UUID, messageID, userID uuid.UUID) error
+	OfMessage(ctx context.Context, messageID uuid.UUID) ([]model.Attachment, error)
+	OwnedByIDs(ctx context.Context, ids []uuid.UUID, userID uuid.UUID) ([]model.Attachment, error)
 }
 
 type ObjectStore interface {

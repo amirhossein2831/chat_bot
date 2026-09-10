@@ -71,6 +71,47 @@ func (r *AttachmentRepository) SetStatus(ctx context.Context, id uuid.UUID, stat
 	return err
 }
 
+// Attach binds documents to the turn they were sent with, and only ones this
+// user owns that are not already bound to another turn.
+func (r *AttachmentRepository) Attach(
+	ctx context.Context,
+	ids []uuid.UUID,
+	messageID, userID uuid.UUID,
+) error {
+	_, err := r.db.Exec(ctx,
+		`update attachments set message_id = $1
+		  where id = any($2) and user_id = $3 and message_id is null`,
+		messageID, ids, userID)
+	return err
+}
+
+func (r *AttachmentRepository) OwnedByIDs(
+	ctx context.Context,
+	ids []uuid.UUID,
+	userID uuid.UUID,
+) ([]model.Attachment, error) {
+	rows, err := r.db.Query(ctx,
+		`select `+attachmentColumns+` from attachments
+		  where id = any($1) and user_id = $2 order by created_at`,
+		ids, userID)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByName[model.Attachment])
+}
+
+// OfMessage returns the documents sent with a turn, so regenerating it puts
+// the same ones back in front of the model.
+func (r *AttachmentRepository) OfMessage(ctx context.Context, messageID uuid.UUID) ([]model.Attachment, error) {
+	rows, err := r.db.Query(ctx,
+		`select `+attachmentColumns+` from attachments where message_id = $1 order by created_at`,
+		messageID)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByName[model.Attachment])
+}
+
 func (r *AttachmentRepository) CountToday(ctx context.Context, userID uuid.UUID) (int, error) {
 	var count int
 	err := r.db.QueryRow(ctx,

@@ -47,12 +47,23 @@ func (c *Controller) Send(w http.ResponseWriter, r *http.Request) {
 		editOf = &parsed
 	}
 
+	attachments := make([]uuid.UUID, 0, len(req.AttachmentIDs))
+	for _, id := range req.AttachmentIDs {
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			httpio.Error(w, constants.ErrBadRequest)
+			return
+		}
+		attachments = append(attachments, parsed)
+	}
+
 	started, err := c.service.Send(r.Context(), chatservice.SendCommand{
 		UserID:         mw.UserFrom(r.Context()).ID,
 		ConversationID: conversationID,
 		Content:        req.Content,
 		Model:          req.Model,
 		EditOf:         editOf,
+		AttachmentIDs:  attachments,
 	})
 	if err != nil {
 		httpio.Error(w, err)

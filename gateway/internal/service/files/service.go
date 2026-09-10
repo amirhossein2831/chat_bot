@@ -167,6 +167,65 @@ func (s *Service) Text(ctx context.Context, id, userID uuid.UUID) (string, error
 	return wrapUntrusted(attachment.Filename, string(content)), nil
 }
 
+// Attach binds documents to the turn being sent. Ownership is enforced in the
+// statement itself, so an id belonging to someone else simply matches nothing.
+func (s *Service) Attach(ctx context.Context, ids []uuid.UUID, messageID, userID uuid.UUID) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return s.repo.Attach(ctx, ids, messageID, userID)
+}
+
+// TextFor returns what was extracted from the documents being sent with a new
+// turn; TextOf does the same for the documents already bound to one.
+func (s *Service) TextFor(ctx context.Context, ids []uuid.UUID, userID uuid.UUID) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	attachments, err := s.repo.OwnedByIDs(ctx, ids, userID)
+	if err != nil {
+		return nil, err
+	}
+	return s.documentTexts(ctx, attachments), nil
+}
+
+func (s *Service) TextOf(ctx context.Context, messageID uuid.UUID) ([]string, error) {
+	attachments, err := s.repo.OfMessage(ctx, messageID)
+	if err != nil {
+		return nil, err
+	}
+	return s.documentTexts(ctx, attachments), nil
+}
+
+// documentTexts wraps each document as untrusted data. One still being extracted, or
+// one that failed, contributes nothing rather than blocking the answer.
+func (s *Service) documentTexts(ctx context.Context, attachments []model.Attachment) []string {
+	documents := make([]string, 0, len(attachments))
+
+	for _, attachment := range attachments {
+		if attachment.ExtractionStatus != model.ExtractionDone || attachment.TextKey == nil {
+			continue
+		}
+
+		body, err := s.store.Get(ctx, *attachment.TextKey)
+		if err != nil {
+			s.log.Warn("attached document could not be read",
+				zap.String("attachment_id", attachment.ID.String()), zap.Error(err))
+			continue
+		}
+
+		content, err := io.ReadAll(io.LimitReader(body, maxExtractedChars))
+		_ = body.Close()
+		if err != nil {
+			continue
+		}
+
+		documents = append(documents, wrapUntrusted(attachment.Filename, string(content)))
+	}
+	return documents
+}
+
 // Extract is the job body. It runs in a worker, not on a request.
 func (s *Service) Extract(ctx context.Context, id uuid.UUID) error {
 	attachment, err := s.repo.Get(ctx, id)
