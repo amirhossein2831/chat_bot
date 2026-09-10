@@ -470,7 +470,7 @@ func toProviderRequest(prompt domain.PromptContext, modelID string) provider.Cha
 
 	return provider.ChatRequest{
 		Model:     modelID,
-		System:    prompt.System,
+		System:    prompt.System(),
 		Messages:  messages,
 		MaxTokens: defaultMaxTokens,
 	}
