@@ -9,6 +9,9 @@ postgres:
 redis:
   db: 0
 
+ocr:
+  timeout_sec: 600
+
 providers:
   local:
     base_url: "http://localhost:11434"

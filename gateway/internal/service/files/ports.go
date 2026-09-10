@@ -28,3 +28,16 @@ type ObjectStore interface {
 type Queue interface {
 	Enqueue(ctx context.Context, attachmentID uuid.UUID) error
 }
+
+// Pages reads a PDF. Declared here because this service is what needs it; the
+// pdfium adapter satisfies it without knowing this package exists.
+type Pages interface {
+	Pages(document []byte) ([]string, error)
+	Render(document []byte, dpi int, limit int) ([][]byte, error)
+}
+
+// Recognizer is the OCR service. Absent when it is not deployed, in which case
+// scans are reported as unsupported rather than failing.
+type Recognizer interface {
+	Recognize(ctx context.Context, pages [][]byte, languages []string) (string, error)
+}

@@ -3,6 +3,7 @@ package files
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -38,15 +39,33 @@ type Upload struct {
 }
 
 type Service struct {
-	repo   Repository
-	store  ObjectStore
-	queue  Queue
-	limits config.FilesConfig
-	log    *zap.Logger
+	repo       Repository
+	store      ObjectStore
+	queue      Queue
+	pages      Pages
+	recognizer Recognizer
+	limits     config.FilesConfig
+	log        *zap.Logger
 }
 
-func NewService(repo Repository, store ObjectStore, queue Queue, cfg *config.Config, log *zap.Logger) *Service {
-	return &Service{repo: repo, store: store, queue: queue, limits: cfg.Files, log: log}
+func NewService(
+	repo Repository,
+	store ObjectStore,
+	queue Queue,
+	pages Pages,
+	recognizer Recognizer,
+	cfg *config.Config,
+	log *zap.Logger,
+) *Service {
+	return &Service{
+		repo:       repo,
+		store:      store,
+		queue:      queue,
+		pages:      pages,
+		recognizer: recognizer,
+		limits:     cfg.Files,
+		log:        log,
+	}
 }
 
 // Presign records the intent and hands back a URL the browser uploads to
@@ -155,11 +174,6 @@ func (s *Service) Extract(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	if !Extractable(attachment.MIME) {
-		reason := "this format needs the OCR service, which is not deployed yet"
-		return s.repo.SetStatus(ctx, id, model.ExtractionUnsupported, nil, &reason)
-	}
-
 	body, err := s.store.Get(ctx, attachment.ObjectKey)
 	if err != nil {
 		return s.fail(ctx, id, err)
@@ -171,7 +185,11 @@ func (s *Service) Extract(ctx context.Context, id uuid.UUID) error {
 		return s.fail(ctx, id, err)
 	}
 
-	text, err := extract(attachment.MIME, raw)
+	text, err := s.read(ctx, attachment.MIME, raw)
+	if errors.Is(err, constants.ErrUnsupportedMedia) {
+		reason := err.Error()
+		return s.repo.SetStatus(ctx, id, model.ExtractionUnsupported, nil, &reason)
+	}
 	if err != nil {
 		return s.fail(ctx, id, err)
 	}
