@@ -26,6 +26,7 @@ type Registry struct {
 	mu        sync.RWMutex
 	available map[string]bool
 	modelUp   map[string]bool
+	windows   map[string]int
 }
 
 // Availability is satisfied by the metrics collector. It is an interface so
@@ -60,6 +61,7 @@ func New(log *zap.Logger, metrics Availability, providers map[string]provider.Pr
 		metrics:       metrics,
 		available:     available,
 		modelUp:       modelUp,
+		windows:       map[string]int{},
 	}
 }
 
@@ -114,7 +116,18 @@ func (r *Registry) markUnavailable(modelID string) {
 
 func (r *Registry) Health(context.Context) error { return nil }
 
+// ContextWindow prefers what the runtime reported over what the catalogue
+// declares. The catalogue cannot know how much context a machine had room to
+// load, and sending more than that is silently cut rather than refused.
 func (r *Registry) ContextWindow(modelID string) int {
+	r.mu.RLock()
+	discovered := r.windows[modelID]
+	r.mu.RUnlock()
+
+	if discovered > 0 {
+		return discovered
+	}
+
 	for _, m := range r.models {
 		if m.ID == modelID {
 			return m.ContextWindow
@@ -162,6 +175,11 @@ func (r *Registry) Probe(ctx context.Context) {
 			defer cancel()
 
 			up, ids := r.inspect(probeCtx, name, p)
+			if up {
+				// Outside the lock below: this is another request, and holding
+				// it here would make the providers probe one after another.
+				r.discoverWindows(probeCtx, p)
+			}
 
 			mu.Lock()
 			results[name] = up
@@ -198,6 +216,31 @@ func (r *Registry) Probe(ctx context.Context) {
 		r.modelUp[m.ID] = loaded
 	}
 	r.mu.Unlock()
+}
+
+// discoverWindows asks a runtime what it actually loaded. A provider that
+// cannot say keeps whatever the catalogue declared.
+func (r *Registry) discoverWindows(ctx context.Context, p provider.Provider) {
+	windower, ok := p.(provider.Windower)
+	if !ok {
+		return
+	}
+
+	windows, err := windower.ContextWindows(ctx)
+	if err != nil {
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for model, window := range windows {
+		if r.windows[model] != window {
+			r.log.Info("context window discovered",
+				zap.String("model", model), zap.Int("tokens", window))
+		}
+		r.windows[model] = window
+	}
 }
 
 // inspect returns whether the provider answered and, when it can say, the set

@@ -24,6 +24,13 @@ type Lister interface {
 	List(ctx context.Context) ([]string, error)
 }
 
+// Windower is implemented by a self-hosted runtime that can say how much
+// context it actually loaded. That number comes from the machine it runs on,
+// not from the model, so it is discovered rather than declared.
+type Windower interface {
+	ContextWindows(ctx context.Context) (map[string]int, error)
+}
+
 type Tier string
 
 const (
