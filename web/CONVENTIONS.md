@@ -68,3 +68,56 @@ Pure logic that is painful to test through a component:
   mid-line splits.
 - `lib/textnorm.ts` — port of the Go normaliser. If they diverge, client
   filtering contradicts server search.
+
+## Traps found the hard way
+
+Each of these cost a debugging session. They look like styling or timing
+quirks and are none of them obvious from the symptom.
+
+### Layout
+
+- **A flex item will not shrink below its content.** `min-height` and
+  `min-width` default to `auto`, so `flex-1` plus `overflow-y-auto` does not
+  scroll: the column grows instead and the thread ends up behind the composer.
+  Every flex ancestor of a scroll area needs `min-h-0`, and every flex parent
+  of truncating text needs `min-w-0`.
+- **A row flex container stretches its child to its own height.** Anything
+  watching that child for size changes then never fires, because the box never
+  changes. A scroll area whose content must be measured is a column.
+- **`rtl:` matches through a nested `dir` island.** Tailwind's variant is an
+  ancestor selector, so inside a `dir="ltr"` subtree of an RTL page the icons
+  mirror while the flex order does not, and arrows end up pointing the wrong
+  way. A row of controls carries the interface's direction explicitly.
+- **Animated scrolling fights growing content.** A smooth scroll travels toward
+  the height it started with, so an answer that grows mid-flight lands short.
+  Pin instantly; let the content animate instead.
+
+### Rendering answers
+
+- **Memoise the markdown renderer on its text.** It replaces its whole subtree
+  on every render, so without this each refetch rebuilds the DOM of every
+  answer in the thread rather than the one that changed.
+- **Models write `\(…\)` and `\[…\]`, not `$…$`.** Markdown reads those as
+  escaped brackets, so formulas arrive as literal punctuation. Convert them
+  before parsing, and leave code alone: a backslash-paren there is a regex.
+- **Display maths must stand on its own lines.** `$$…$$` written inline is
+  parsed as ordinary maths and rendered in text style, where fractions shrink.
+- **KaTeX's stylesheet must match the KaTeX that renders.** The class that
+  shrinks superscripts was renamed between versions; with the wrong pairing
+  every superscript stays full size and floats over what it should sit beside.
+  `rehype-katex` pins its own copy — depend on that same version.
+- **Swapping a dependency needs the dev server's cache cleared.** Vite serves
+  the pre-bundled copy until `node_modules/.vite` is removed and it restarts.
+
+### Optimistic turns
+
+- **Confirm a sent turn by the id the server names, not by content or timing.**
+  Content hides a message identical to the one before it. Timing counts the
+  first fetch of a new conversation, which lands before the turn exists and
+  leaves the thread blank for as long as the model takes to answer.
+- **A message being streamed into is the one the server named**, not the last
+  one in the list: assuming the last blanks the previous answer while a new
+  send is confirmed, and keeps rendering an emptied buffer once it ends.
+- **Effects that start work must be idempotent.** Entering twice for the same
+  conversation would abort the send the first pass began and ask for a second
+  answer to one question.

@@ -37,11 +37,50 @@ func (c *Controller) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var editOf *uuid.UUID
+	if req.EditOf != "" {
+		parsed, err := uuid.Parse(req.EditOf)
+		if err != nil {
+			httpio.Error(w, constants.ErrBadRequest)
+			return
+		}
+		editOf = &parsed
+	}
+
 	started, err := c.service.Send(r.Context(), chatservice.SendCommand{
 		UserID:         mw.UserFrom(r.Context()).ID,
 		ConversationID: conversationID,
 		Content:        req.Content,
 		Model:          req.Model,
+		EditOf:         editOf,
+	})
+	if err != nil {
+		httpio.Error(w, err)
+		return
+	}
+
+	rc := sse.Prepare(w)
+	sse.Meta(w, rc, started.MessageID.String(), started.Truncated)
+	sse.Pipe(w, r, rc, started.Deltas)
+}
+
+func (c *Controller) Regenerate(w http.ResponseWriter, r *http.Request) {
+	messageID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpio.Error(w, constants.ErrBadRequest)
+		return
+	}
+
+	var req dto.RegenerateRequest
+	if err := httpio.Decode(r, &req); err != nil {
+		httpio.Error(w, err)
+		return
+	}
+
+	started, err := c.service.Regenerate(r.Context(), chatservice.RegenerateCommand{
+		UserID:    mw.UserFrom(r.Context()).ID,
+		MessageID: messageID,
+		Model:     req.Model,
 	})
 	if err != nil {
 		httpio.Error(w, err)
@@ -76,7 +115,7 @@ func (c *Controller) Stop(r *http.Request) (*httpio.Response, error) {
 	if err != nil {
 		return nil, constants.ErrBadRequest
 	}
-	if err := c.service.Stop(messageID); err != nil {
+	if err := c.service.Stop(r.Context(), messageID); err != nil {
 		return nil, err
 	}
 	return httpio.NoContent(), nil

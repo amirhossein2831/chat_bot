@@ -6,8 +6,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// Time to first token is the primary metric: it is what a user perceives as
-// speed, and it is the first thing to degrade when a relay is struggling.
 type Metrics struct {
 	timeToFirstToken *prometheus.HistogramVec
 	streamDuration   *prometheus.HistogramVec

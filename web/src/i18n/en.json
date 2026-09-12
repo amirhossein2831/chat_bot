@@ -1,0 +1,114 @@
+{
+  "app": {
+    "name": "Assistant"
+  },
+  "nav": {
+    "newChat": "New chat",
+    "prompts": "Prompt library",
+    "memory": "Memory and settings",
+    "back": "Back"
+  },
+  "search": {
+    "placeholder": "Search conversations",
+    "results": "{{count}} results",
+    "all": "All conversations",
+    "empty": "No conversations found"
+  },
+  "composer": {
+    "placeholder": "Write a message…",
+    "hint": "Enter to send · Shift+Enter for a new line",
+    "send": "Send",
+    "stop": "Stop"
+  },
+  "chat": {
+    "truncated": "Earlier messages were dropped to fit the model's context",
+    "writing": "Writing",
+    "regenerate": "Regenerate",
+    "copy": "Copy",
+    "branch": "{{current}} of {{total}}",
+    "reconnecting": "Connection lost, reconnecting…",
+    "failed": "No reply. The model is unavailable or the request failed.",
+    "modelDown": "This model is unavailable right now. Your message was saved; try again later.",
+    "quotaExceeded": "You have used today's message allowance. Try again tomorrow.",
+    "notAllowed": "Your current plan does not include this model.",
+    "retry": "Retry",
+    "disconnected": "The connection to the server was lost.",
+    "copied": "Copied",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "previousBranch": "Previous version",
+    "nextBranch": "Next version",
+    "jumpToLatest": "Jump to latest"
+  },
+  "models": {
+    "unavailable": "Unavailable",
+    "local": "Local",
+    "inUse": "In use",
+    "back": "Back",
+    "chooseProvider": "Provider",
+    "countAvailable": "{{count}} available",
+    "noneAvailable": "None available",
+    "providers": {
+      "local": "Local",
+      "openai": "OpenAI",
+      "anthropic": "Anthropic"
+    }
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "invite": "Invite code",
+    "login": "Log in",
+    "register": "Sign up",
+    "logout": "Log out",
+    "haveAccount": "Have an account?",
+    "noAccount": "No account?",
+    "inviteOptional": "Invite code (optional)",
+    "inviteHelp": "Enter one if you have it. It is not required."
+  },
+  "memory": {
+    "title": "Memory and settings",
+    "instructions": "Standing instruction",
+    "instructionsHelp": "This is added to every conversation.",
+    "facts": "What is remembered about you",
+    "factsHelp": "Delete any of these and the assistant stops seeing it.",
+    "add": "Add",
+    "save": "Save",
+    "delete": "Delete",
+    "undo": "Undo"
+  },
+  "prompts": {
+    "title": "Prompt library",
+    "subtitle": "Fill in the blanks and send.",
+    "all": "All"
+  },
+  "files": {
+    "attach": "Attach a file",
+    "extracting": "Extracting text",
+    "ready": "Text extracted",
+    "unsupported": "This format is not supported yet",
+    "failed": "Extraction failed",
+    "storageDown": "File upload is temporarily unavailable"
+  },
+  "error": {
+    "generic": "Something went wrong",
+    "quota": "Today's allowance is used up",
+    "modelUnavailable": "This model is unavailable"
+  },
+  "empty": {
+    "title": "How can I help?",
+    "subtitle": "Write your question, or pick a starting point from the prompt library."
+  },
+  "conversation": {
+    "menu": "Options",
+    "rename": "Rename",
+    "delete": "Delete chat"
+  },
+  "history": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "week": "Previous 7 days",
+    "older": "Older"
+  }
+}

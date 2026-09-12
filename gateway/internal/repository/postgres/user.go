@@ -65,14 +65,19 @@ func (r *UserRepository) Create(ctx context.Context, user model.User, invite str
 		return err
 	}
 
-	claimed, err := tx.Exec(ctx,
-		`update invites set used_by = $1, used_at = now()
-		  where code = $2 and used_by is null`, user.ID, invite)
-	if err != nil {
-		return err
-	}
-	if claimed.RowsAffected() == 0 {
-		return constants.ErrUnauthorized
+	// An invite is optional: signing up without one is allowed and grants the
+	// free tier. Supplying a bad one is still an error, because a typo should
+	// be reported rather than silently ignored.
+	if invite != "" {
+		claimed, err := tx.Exec(ctx,
+			`update invites set used_by = $1, used_at = now()
+			  where code = $2 and used_by is null`, user.ID, invite)
+		if err != nil {
+			return err
+		}
+		if claimed.RowsAffected() == 0 {
+			return constants.ErrUnauthorized
+		}
 	}
 
 	return tx.Commit(ctx)

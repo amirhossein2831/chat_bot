@@ -19,4 +19,7 @@ type Repository interface {
 	Thread(ctx context.Context, conversationID uuid.UUID, limit int) (domain.Thread, error)
 	Siblings(ctx context.Context, parentID uuid.UUID) ([]model.Message, error)
 	SetHead(ctx context.Context, conversationID, messageID uuid.UUID) error
+	DeepestDescendant(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	Message(ctx context.Context, id uuid.UUID) (model.Message, error)
+	SiblingSets(ctx context.Context, conversationID uuid.UUID, parents []uuid.UUID, includeRoot bool) ([]domain.Sibling, error)
 }

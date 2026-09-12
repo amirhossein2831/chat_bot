@@ -23,16 +23,17 @@ type ConversationResponse struct {
 }
 
 type MessageResponse struct {
-	ID        string  `json:"id"`
-	ParentID  *string `json:"parent_id"`
-	Role      string  `json:"role"`
-	Content   string  `json:"content"`
-	Status    string  `json:"status"`
-	Model     string  `json:"model"`
-	TokensIn  int     `json:"tokens_in"`
-	TokensOut int     `json:"tokens_out"`
-	Error     *string `json:"error,omitempty"`
-	CreatedAt string  `json:"created_at"`
+	ID        string   `json:"id"`
+	ParentID  *string  `json:"parent_id"`
+	Role      string   `json:"role"`
+	Content   string   `json:"content"`
+	Status    string   `json:"status"`
+	Model     string   `json:"model"`
+	TokensIn  int      `json:"tokens_in"`
+	TokensOut int      `json:"tokens_out"`
+	Error     *string  `json:"error,omitempty"`
+	Siblings  []string `json:"siblings"`
+	CreatedAt string   `json:"created_at"`
 }
 
 type ThreadResponse struct {

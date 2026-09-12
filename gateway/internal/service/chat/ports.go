@@ -15,7 +15,10 @@ import (
 type Conversations interface {
 	Get(ctx context.Context, id, userID uuid.UUID) (model.Conversation, error)
 	Thread(ctx context.Context, conversationID uuid.UUID, limit int) (domain.Thread, error)
+	ThreadTo(ctx context.Context, messageID uuid.UUID, limit int) (domain.Thread, error)
+	Message(ctx context.Context, id uuid.UUID) (model.Message, error)
 	AppendPair(ctx context.Context, user, assistant model.Message) error
+	AppendBranch(ctx context.Context, m model.Message) error
 	AppendPartial(ctx context.Context, id uuid.UUID, content string) error
 	Finalize(ctx context.Context, m model.Message) error
 }
