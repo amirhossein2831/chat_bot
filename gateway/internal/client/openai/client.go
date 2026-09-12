@@ -12,18 +12,20 @@ import (
 )
 
 const (
-	chatPath   = "/v1/chat/completions"
-	modelsPath = "/v1/models"
+	chatPath    = "/v1/chat/completions"
+	modelsPath  = "/v1/models"
+	runningPath = "/api/ps"
 
 	channelBuffer = 32
 )
 
 type Client struct {
-	http    *http.Client
-	baseURL string
-	apiKey  string
-	name    string
-	models  []provider.ModelInfo
+	http     *http.Client
+	baseURL  string
+	apiKey   string
+	name     string
+	discover bool
+	models   []provider.ModelInfo
 }
 
 type Option func(*Client)
@@ -35,6 +37,11 @@ func WithHTTPClient(client *http.Client) Option {
 }
 
 func WithName(name string) Option { return func(c *Client) { c.name = name } }
+
+// WithRuntimeDiscovery is for a self-hosted runtime, which knows how much
+// context it loaded. A hosted provider is not asked, because its window is a
+// published figure rather than a property of a machine.
+func WithRuntimeDiscovery() Option { return func(c *Client) { c.discover = true } }
 
 func WithModels(models []provider.ModelInfo) Option {
 	return func(c *Client) { c.models = models }
@@ -64,25 +71,9 @@ func (c *Client) Health(ctx context.Context) error {
 }
 
 func (c *Client) List(ctx context.Context) ([]string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+modelsPath, nil)
+	payload, err := c.list(ctx)
 	if err != nil {
 		return nil, err
-	}
-	c.authorize(req)
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode >= http.StatusBadRequest {
-		return nil, fmt.Errorf("%s health: status %d", c.name, resp.StatusCode)
-	}
-
-	var payload modelListResponse
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return nil, fmt.Errorf("%s models: %w", c.name, err)
 	}
 
 	ids := make([]string, 0, len(payload.Data))
@@ -90,6 +81,78 @@ func (c *Client) List(ctx context.Context) ([]string, error) {
 		ids = append(ids, m.ID)
 	}
 	return ids, nil
+}
+
+func (c *Client) list(ctx context.Context) (modelListResponse, error) {
+	var payload modelListResponse
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+modelsPath, nil)
+	if err != nil {
+		return payload, err
+	}
+	c.authorize(req)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return payload, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		return payload, fmt.Errorf("%s health: status %d", c.name, resp.StatusCode)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return payload, fmt.Errorf("%s models: %w", c.name, err)
+	}
+	return payload, nil
+}
+
+// ContextWindows reports the window each served model was actually loaded
+// with. vLLM answers on the models endpoint; Ollama answers on its own, and
+// its number is the one that matters because a prompt longer than the loaded
+// context is silently cut rather than refused.
+func (c *Client) ContextWindows(ctx context.Context) (map[string]int, error) {
+	windows := map[string]int{}
+
+	listed, err := c.list(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, model := range listed.Data {
+		if model.MaxModelLen > 0 {
+			windows[model.ID] = model.MaxModelLen
+		}
+	}
+	if len(windows) > 0 || !c.discover {
+		return windows, nil
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+runningPath, nil)
+	if err != nil {
+		return windows, nil
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return windows, nil
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		return windows, nil
+	}
+
+	var running runningResponse
+	if err := json.NewDecoder(resp.Body).Decode(&running); err != nil {
+		return windows, nil
+	}
+	for _, model := range running.Models {
+		if model.ContextLength > 0 {
+			windows[model.Name] = model.ContextLength
+		}
+	}
+	return windows, nil
 }
 
 func (c *Client) Stream(ctx context.Context, req provider.ChatRequest) (<-chan provider.Delta, error) {

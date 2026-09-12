@@ -61,5 +61,17 @@ func toWire(req provider.ChatRequest) chatRequest {
 type modelListResponse struct {
 	Data []struct {
 		ID string `json:"id"`
+		// vLLM reports the window it was started with here; OpenAI and Ollama
+		// leave it out.
+		MaxModelLen int `json:"max_model_len"`
 	} `json:"data"`
+}
+
+// runningResponse is Ollama's, which reports the context it actually loaded
+// rather than what the model could take on better hardware.
+type runningResponse struct {
+	Models []struct {
+		Name          string `json:"name"`
+		ContextLength int    `json:"context_length"`
+	} `json:"models"`
 }

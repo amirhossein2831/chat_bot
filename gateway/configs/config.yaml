@@ -9,6 +9,9 @@ postgres:
 redis:
   db: 0
 
+ocr:
+  timeout_sec: 600
+
 providers:
   local:
     base_url: "http://localhost:11434"
@@ -21,6 +24,9 @@ models:
   - id: qwen2.5:3b
     provider: local
     tier: local
+    # A floor for before the runtime has been asked. A self-hosted runtime
+    # reports what it actually loaded, which depends on the machine's memory,
+    # and that figure wins.
     context_window: 4096
     cost_per_1k_in_usd_micros: 0
     cost_per_1k_out_usd_micros: 0

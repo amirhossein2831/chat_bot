@@ -65,6 +65,7 @@ func buildProviders(cfg *config.Config, models []provider.ModelInfo) map[string]
 	if cfg.Providers.Local.BaseURL != "" {
 		providers["local"] = openai.New(cfg.Providers.Local.BaseURL,
 			openai.WithName("local"),
+			openai.WithRuntimeDiscovery(),
 			openai.WithHTTPClient(direct),
 			openai.WithModels(modelsFor(models, "local")))
 	}

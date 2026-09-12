@@ -12,6 +12,8 @@ const (
 	maxFactChars        = 3000
 
 	baseSystemPrompt = "You are a helpful assistant. Answer in the language the user writes in."
+
+	charsPerToken = 2
 )
 
 // MemoryContext is what the user has told the assistant to remember. It is
@@ -25,12 +27,33 @@ type MemoryContext struct {
 // model types rather than provider types so this package stays independent of
 // any client.
 type PromptContext struct {
-	System    string
+	// Kept apart from the documents so that trimming to fit can cut the
+	// documents without touching the instructions.
+	instructions string
+	documents    []string
+
 	Messages  []model.Message
 	truncated bool
 }
 
-func BuildPrompt(thread Thread, memory MemoryContext, input model.Message) PromptContext {
+// System is everything the model is told before the conversation itself.
+func (p PromptContext) System() string {
+	var out strings.Builder
+	out.WriteString(p.instructions)
+
+	for _, document := range p.documents {
+		out.WriteString("\n\n")
+		out.WriteString(document)
+	}
+	return out.String()
+}
+
+func BuildPrompt(
+	thread Thread,
+	memory MemoryContext,
+	documents []string,
+	input model.Message,
+) PromptContext {
 	var system strings.Builder
 	system.WriteString(baseSystemPrompt)
 
@@ -47,26 +70,71 @@ func BuildPrompt(thread Thread, memory MemoryContext, input model.Message) Promp
 	messages = append(messages, thread.Messages...)
 	messages = append(messages, input)
 
-	return PromptContext{System: system.String(), Messages: messages}
+	// Documents sit in the system section rather than in the turn, so what is
+	// stored as the user's message stays what they typed. Each arrives already
+	// wrapped as data the model must not take instructions from.
+	return PromptContext{
+		instructions: system.String(),
+		documents:    documents,
+		Messages:     messages,
+	}
 }
 
-// Fit drops the oldest turns until the estimate fits, and reports false when
-// even the current input alone cannot. The last message is never dropped.
+// Fit reduces the prompt until it fits the model's window, in the order that
+// costs the answer least: older turns first, then the documents.
+//
+// Cutting a document short and saying so beats refusing to answer. A thirty
+// page contract does not fit any window, and a user who attached one wants an
+// answer about what did fit, not an error.
 func (p PromptContext) Fit(window int) (PromptContext, bool) {
 	if window <= 0 {
 		return p, true
 	}
 
-	systemCost := estimateTokens(p.System)
-	for len(p.Messages) > 1 && systemCost+p.TokenEstimate() > window {
+	fits := func() bool { return estimateTokens(p.System())+p.TokenEstimate() <= window }
+
+	for len(p.Messages) > 1 && !fits() {
 		p.Messages = p.Messages[1:]
 		p.truncated = true
 	}
+	if fits() {
+		return p, true
+	}
 
-	if systemCost+p.TokenEstimate() > window {
+	room := window - estimateTokens(p.instructions) - p.TokenEstimate()
+	if room <= 0 {
 		return p, false
 	}
-	return p, true
+
+	p.documents = trimDocuments(p.documents, room)
+	p.truncated = true
+	return p, fits()
+}
+
+// trimDocuments fills the room available in order, so the first document
+// attached is the one kept whole.
+func trimDocuments(documents []string, room int) []string {
+	const marker = "\n… (truncated)"
+
+	budget := room * charsPerToken
+	trimmed := make([]string, 0, len(documents))
+
+	for _, document := range documents {
+		if budget <= len(marker) {
+			break
+		}
+
+		runes := []rune(document)
+		if len(runes) <= budget {
+			trimmed = append(trimmed, document)
+			budget -= len(runes)
+			continue
+		}
+
+		trimmed = append(trimmed, string(runes[:budget-len(marker)])+marker)
+		budget = 0
+	}
+	return trimmed
 }
 
 func (p PromptContext) Truncated() bool { return p.truncated }
@@ -82,7 +150,7 @@ func (p PromptContext) TokenEstimate() int {
 // estimateTokens deliberately overestimates: it feeds quota reservation, and a
 // reservation that runs short is worse than one that holds too much.
 func estimateTokens(s string) int {
-	return utf8.RuneCountInString(s)/2 + 1
+	return utf8.RuneCountInString(s)/charsPerToken + 1
 }
 
 func truncate(s string, limit int) string {

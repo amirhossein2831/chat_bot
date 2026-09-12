@@ -30,6 +30,7 @@ type Config struct {
 	Models    []ModelConfig   `mapstructure:"models"`
 	Objects   ObjectsConfig   `mapstructure:"objects"`
 	Files     FilesConfig     `mapstructure:"files"`
+	OCR       OCRConfig       `mapstructure:"ocr"`
 }
 
 func (c Config) IsProduction() bool { return c.Env == EnvProduction }
@@ -56,6 +57,17 @@ type FilesConfig struct {
 	MaxBytes      int64 `mapstructure:"max_bytes"       validate:"min=1"`
 	PresignTTLMin int   `mapstructure:"presign_ttl_min" validate:"min=1"`
 	DailyLimit    int   `mapstructure:"daily_limit"     validate:"min=1"`
+}
+
+type OCRConfig struct {
+	BaseURL    string `mapstructure:"base_url"`
+	TimeoutSec int    `mapstructure:"timeout_sec" validate:"min=1"`
+}
+
+// Timeout covers a whole document, not one page: a two-hundred-page scan on a
+// shared GPU is minutes of work.
+func (o OCRConfig) Timeout() time.Duration {
+	return time.Duration(o.TimeoutSec) * time.Second
 }
 
 func (f FilesConfig) PresignTTL() time.Duration {
@@ -196,4 +208,9 @@ func setDefaults(v *viper.Viper, env string) {
 	v.SetDefault("files.max_bytes", 20*1024*1024)
 	v.SetDefault("files.presign_ttl_min", 15)
 	v.SetDefault("files.daily_limit", 20)
+
+	// Empty means no OCR service: scans are then reported as unsupported
+	// rather than failing, and every other format still works.
+	v.SetDefault("ocr.base_url", "")
+	v.SetDefault("ocr.timeout_sec", 600)
 }

@@ -28,6 +28,7 @@ type SendCommand struct {
 	ConversationID uuid.UUID
 	Content        string
 	Model          string
+	AttachmentIDs  []uuid.UUID
 	// EditOf names a question being asked again in different words. The new
 	// turn hangs where that one hangs, so the original and its answer stay
 	// where they were and the two become siblings.
@@ -60,6 +61,7 @@ type Service struct {
 	completer     Completer
 	catalogue     Catalogue
 	budget        Budget
+	documents     Documents
 	recaller      Recaller
 	observer      Observer
 	metrics       Metrics
@@ -72,6 +74,7 @@ func NewService(
 	completer Completer,
 	catalogue Catalogue,
 	budget Budget,
+	documents Documents,
 	recaller Recaller,
 	observer Observer,
 	metrics Metrics,
@@ -82,6 +85,7 @@ func NewService(
 		completer:     completer,
 		catalogue:     catalogue,
 		budget:        budget,
+		documents:     documents,
 		recaller:      recaller,
 		observer:      observer,
 		metrics:       metrics,
@@ -115,8 +119,9 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 		Status:         model.MessageStatusComplete,
 	}
 
-	prompt, ok := domain.BuildPrompt(thread, s.memory(ctx, cmd.UserID), userMessage).
-		Fit(s.catalogue.ContextWindow(modelID))
+	prompt, ok := domain.BuildPrompt(
+		thread, s.memory(ctx, cmd.UserID), s.attached(ctx, cmd.AttachmentIDs, cmd.UserID), userMessage,
+	).Fit(s.catalogue.ContextWindow(modelID))
 	if !ok {
 		return Started{}, constants.ErrContextTooLarge
 	}
@@ -137,7 +142,12 @@ func (s *Service) Send(ctx context.Context, cmd SendCommand) (Started, error) {
 		Assistant: assistant,
 		UserText:  cmd.Content,
 		Persist: func(ctx context.Context, m model.Message) error {
-			return s.conversations.AppendPair(ctx, userMessage, m)
+			if err := s.conversations.AppendPair(ctx, userMessage, m); err != nil {
+				return err
+			}
+			// Bound after the turn exists, so regenerating it later puts the
+			// same documents back in front of the model.
+			return s.documents.Attach(ctx, cmd.AttachmentIDs, userMessage.ID, cmd.UserID)
 		},
 	})
 }
@@ -204,8 +214,9 @@ func (s *Service) Regenerate(ctx context.Context, cmd RegenerateCommand) (Starte
 		return Started{}, constants.ErrNotFound
 	}
 
-	prompt, ok := domain.BuildPrompt(thread.WithoutHead(), s.memory(ctx, cmd.UserID), input).
-		Fit(s.catalogue.ContextWindow(modelID))
+	prompt, ok := domain.BuildPrompt(
+		thread.WithoutHead(), s.memory(ctx, cmd.UserID), s.attachedTo(ctx, input.ID), input,
+	).Fit(s.catalogue.ContextWindow(modelID))
 	if !ok {
 		return Started{}, constants.ErrContextTooLarge
 	}
@@ -427,6 +438,26 @@ func (s *Service) memory(ctx context.Context, userID uuid.UUID) domain.MemoryCon
 	return memory
 }
 
+// A document that cannot be read is left out rather than failing the answer:
+// the user asked a question, and the rest of the context is still worth having.
+func (s *Service) attached(ctx context.Context, ids []uuid.UUID, userID uuid.UUID) []string {
+	documents, err := s.documents.TextFor(ctx, ids, userID)
+	if err != nil {
+		s.log.Warn("attached documents could not be read", zap.Error(err))
+		return nil
+	}
+	return documents
+}
+
+func (s *Service) attachedTo(ctx context.Context, messageID uuid.UUID) []string {
+	documents, err := s.documents.TextOf(ctx, messageID)
+	if err != nil {
+		s.log.Warn("attached documents could not be read", zap.Error(err))
+		return nil
+	}
+	return documents
+}
+
 func toProviderRequest(prompt domain.PromptContext, modelID string) provider.ChatRequest {
 	messages := make([]provider.Message, 0, len(prompt.Messages))
 	for _, m := range prompt.Messages {
@@ -439,7 +470,7 @@ func toProviderRequest(prompt domain.PromptContext, modelID string) provider.Cha
 
 	return provider.ChatRequest{
 		Model:     modelID,
-		System:    prompt.System,
+		System:    prompt.System(),
 		Messages:  messages,
 		MaxTokens: defaultMaxTokens,
 	}

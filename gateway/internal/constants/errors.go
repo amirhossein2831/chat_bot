@@ -14,4 +14,5 @@ var (
 	ErrStorageUnavailable = errors.New("storage unavailable")
 	ErrInvalidTransition  = errors.New("invalid state transition")
 	ErrContextTooLarge    = errors.New("context too large")
+	ErrUnsupportedMedia   = errors.New("unsupported media")
 )

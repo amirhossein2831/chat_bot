@@ -14,7 +14,7 @@ import { useDefaultModel } from "./useModels";
 import { Suggestions } from "./Suggestions";
 import { useSwitchBranch, useThread } from "./useThread";
 
-type PendingSend = { pending?: string; model?: string };
+type PendingSend = { pending?: string; model?: string; attachments?: string[] };
 
 // The waiting reply is a turn in the list rather than a separate indicator, so
 // the dots and the answer that replaces them are the same element and nothing
@@ -115,7 +115,7 @@ export function ChatPage() {
     const state = location.state as PendingSend | null;
     if (id && state?.pending) {
       navigate(location.pathname, { replace: true, state: null });
-      void stream.send(id, state.pending, state.model);
+      void stream.send(id, state.pending, state.model, undefined, state.attachments);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -149,16 +149,24 @@ export function ChatPage() {
     const content = draft.trim();
     if (!content) return;
 
+    // Only documents that finished extracting carry text; one still being read
+    // would reach the model as nothing at all.
+    const attachments = uploads.items
+      .filter((item) => item.status === "done")
+      .map((item) => item.id);
+
     setDraft(draftKey, "");
     uploads.clear();
 
     if (!id) {
       const conversation = await create.mutateAsync({ title: content.slice(0, 60), model: chosenModel });
-      navigate(`/c/${conversation.id}`, { state: { pending: content, model: chosenModel } });
+      navigate(`/c/${conversation.id}`, {
+        state: { pending: content, model: chosenModel, attachments },
+      });
       return;
     }
 
-    void stream.send(id, content, chosenModel);
+    void stream.send(id, content, chosenModel, undefined, attachments);
   };
 
   // The branches beside this one are named by the server: a thread is a single
